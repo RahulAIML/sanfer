@@ -89,7 +89,7 @@ export default function OverviewPage() {
   const userDropdownRef = useRef<HTMLDivElement>(null)
 
   const allUserNames = useMemo(
-    () => Array.from(new Set(sims.map((s) => s.Usuario_Nombre))).sort(),
+    () => Array.from(new Set(sims.map((s) => s.Usuario_Nombre).filter((n): n is string => !!n))).sort(),
     [sims],
   )
   const filteredUserNames = useMemo(
@@ -129,7 +129,7 @@ export default function OverviewPage() {
       })
     }
     if (selectedUsers.size > 0) {
-      result = result.filter((s) => selectedUsers.has(s.Usuario_Nombre))
+      result = result.filter((s) => s.Usuario_Nombre && selectedUsers.has(s.Usuario_Nombre))
     }
     return result
   }, [sims, from, to, selectedUsers])

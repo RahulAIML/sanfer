@@ -17,7 +17,7 @@ const TEST_USER_BLOCKLIST = new Set([
 
 /** Remove simulations belonging to known test/demo accounts */
 export function filterTestUsers(sims: Simulation[]): Simulation[] {
-  return sims.filter((s) => !TEST_USER_BLOCKLIST.has(s.Usuario_Nombre))
+  return sims.filter((s) => !TEST_USER_BLOCKLIST.has(s.Usuario_Nombre ?? ''))
 }
 
 // ─────────────────────────────────────────────
@@ -38,7 +38,7 @@ function isApplicable(v: unknown): v is number {
   return typeof v === 'number'
 }
 
-const INTERACTION_KEYS = ['Puntos_1','Puntos_2','Puntos_3','Puntos_4','Puntos_5','Puntos_6'] as const
+const INTERACTION_KEYS = ['Puntos_1','Puntos_2','Puntos_3','Puntos_4','Puntos_5'] as const
 
 /** Count of applicable (numeric) interactions for one simulation */
 function countApplicable(s: Simulation): number {
@@ -79,8 +79,8 @@ export function computeKPIs(
   members: Member[],
   admins: Administrator[],
 ): DashboardKPIs {
-  const passCount = sims.filter((s) => s.Diagnostico_Final === 'Si').length
-  const advisors = new Set(sims.map((s) => s.Usuario_Nombre))
+  const passCount = sims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
+  const advisors = new Set(sims.map((s) => s.Usuario_Nombre).filter(Boolean))
   const scores = sims.map((s) => s.Calificacion)
 
   return {
@@ -147,7 +147,7 @@ export function computeTrend(sims: Simulation[]): TrendPoint[] {
       avgScore: Math.round(avg(group.map((s) => s.Calificacion))),
       count: group.length,
       passRate: pct(
-        group.filter((s) => s.Diagnostico_Final === 'Si').length,
+        group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length,
         group.length,
       ),
     }))
@@ -166,7 +166,7 @@ export interface RoundStat {
 }
 
 export function computeRoundStats(sims: Simulation[]): RoundStat[] {
-  return [1, 2, 3, 4, 5, 6].map((i) => {
+  return [1, 2, 3, 4, 5].map((i) => {
     const key = `Puntos_${i}` as keyof Simulation
     const values = sims
       .map((s) => s[key])
@@ -208,7 +208,7 @@ export function computeActivityStats(
   return Object.entries(byActivity).map(([id, group]) => {
     const numId = Number(id)
     const act = actMap.get(numId)
-    const passCount = group.filter((s) => s.Diagnostico_Final === 'Si').length
+    const passCount = group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
     return {
       id: numId,
       name: act?.Caso_de_Uso ?? `Activity ${id}`,
@@ -227,7 +227,7 @@ export function computeActivityStats(
 // ─────────────────────────────────────────────
 export interface UserStat {
   name: string
-  userId: string
+  userId: string | null
   count: number
   avgScore: number
   passRate: number
@@ -244,7 +244,7 @@ export function computeUserStats(sims: Simulation[]): UserStat[] {
   })
   return Object.entries(byUser)
     .map(([name, group]) => {
-      const passCount = group.filter((s) => s.Diagnostico_Final === 'Si').length
+      const passCount = group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
       const scores = group.map((s) => s.Calificacion)
       return {
         name,
@@ -310,7 +310,7 @@ export function buildOrgTree(admins: Administrator[], members: Member[]): OrgNod
 // ─────────────────────────────────────────────
 export interface FeedbackEntry {
   simId: number
-  userName: string
+  userName: string | null
   round: number
   question: string
   response: string
@@ -321,7 +321,7 @@ export interface FeedbackEntry {
 export function extractFeedback(sims: Simulation[]): FeedbackEntry[] {
   const entries: FeedbackEntry[] = []
   sims.forEach((s) => {
-    for (let i = 1; i <= 6; i++) {
+    for (let i = 1; i <= 5; i++) {
       const puntos = s[`Puntos_${i}` as keyof Simulation]
       if (!isApplicable(puntos)) continue   // skip "No aplica" and null
       const feedback = s[`Retroalimentacion_${i}` as keyof Simulation] as string | null
@@ -359,42 +359,44 @@ export function computeLineStats(
   members: Member[],
   sims: Simulation[],
 ): LineStat[] {
-  // Members have mb_idTag1 which maps to a line tag id
-  const membersByLine = new Map<string, Member[]>()
+  // Group members by their line id (mb_idTag1 === 0 means unassigned)
+  const membersByLine = new Map<number, Member[]>()
   members.forEach((m) => {
-    const key = m.mb_idTag1 ?? '__none__'
-    if (!membersByLine.has(key)) membersByLine.set(key, [])
-    membersByLine.get(key)!.push(m)
+    if (!m.mb_idTag1) return  // skip unassigned (0 or falsy)
+    if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, [])
+    membersByLine.get(m.mb_idTag1)!.push(m)
   })
 
-  // Match sims to lines via member user lookup
-  const userToLineKey = new Map<string, string>()
+  // Build user → lineId lookup (mb_user email → line.id)
+  const userToLine = new Map<string, number>()
   members.forEach((m) => {
-    userToLineKey.set(m.mb_user, m.mb_idTag1 ?? '__none__')
+    if (m.mb_idTag1 && m.mb_user) userToLine.set(m.mb_user, m.mb_idTag1)
   })
 
-  const simsByLine = new Map<string, Simulation[]>()
+  // Group sims by line
+  const simsByLine = new Map<number, Simulation[]>()
   sims.forEach((s) => {
-    const lineKey = userToLineKey.get(s.Usuario) ?? '__none__'
-    if (!simsByLine.has(lineKey)) simsByLine.set(lineKey, [])
-    simsByLine.get(lineKey)!.push(s)
+    if (!s.Usuario) return
+    const lineId = userToLine.get(s.Usuario)
+    if (!lineId) return
+    if (!simsByLine.has(lineId)) simsByLine.set(lineId, [])
+    simsByLine.get(lineId)!.push(s)
   })
 
   return lines.map((line) => {
-    const key = String(line.tag_id)
-    const lineMembers = membersByLine.get(key) ?? []
-    const lineSims = simsByLine.get(key) ?? []
-    const passCount = lineSims.filter((s) => s.Diagnostico_Final === 'Si').length
+    const lineMembers = membersByLine.get(line.id) ?? []
+    const lineSims = simsByLine.get(line.id) ?? []
+    const passCount = lineSims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
     const scores = lineSims.map((s) => s.Calificacion)
     return {
-      id: line.tag_id,
-      name: line.tag_name,
+      id: line.id,
+      name: line.name,
       memberCount: lineMembers.length,
       simCount: lineSims.length,
       avgScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
       passRate: lineSims.length ? Math.round((passCount / lineSims.length) * 100) : 0,
       passCount,
-      activeUsers: new Set(lineSims.map((s) => s.Usuario_Nombre)).size,
+      activeUsers: new Set(lineSims.map((s) => s.Usuario_Nombre).filter(Boolean)).size,
     }
   }).sort((a, b) => b.simCount - a.simCount)
 }

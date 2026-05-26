@@ -17,7 +17,7 @@ export default function SimulationsPage() {
   const filtered = sims.filter((s) => {
     const q = search.toLowerCase()
     return (
-      s.Usuario_Nombre.toLowerCase().includes(q) ||
+      (s.Usuario_Nombre ?? '').toLowerCase().includes(q) ||
       actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso?.toLowerCase().includes(q) ||
       s.Fecha_y_Hora.includes(q)
     )

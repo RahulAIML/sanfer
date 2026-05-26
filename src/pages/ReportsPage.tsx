@@ -70,7 +70,7 @@ export default function ReportsPage() {
       'Fecha_y_Hora', 'Calificacion', 'Puntos_Totales', 'Diagnostico_Final',
     ]]
     sims.forEach((s) => rows.push([
-      String(s.ID_Sim), s.Usuario, s.Usuario_Nombre,
+      String(s.ID_Sim), s.Usuario ?? '', s.Usuario_Nombre ?? '',
       String(s.ID_Caso_de_Uso), s.Fecha_y_Hora,
       String(s.Calificacion), String(s.Puntos_Totales),
       s.Diagnostico_Final ?? '',

@@ -5,6 +5,11 @@ export interface Activity {
   Actividad_Nombre: string
   Caso_de_Uso: string
   ID_Caso_de_Uso: number
+  Criterio1?: string
+  Criterio2?: string
+  Criterio3?: string
+  Criterio4?: string
+  Criterio5?: string
 }
 
 export interface ActivitiesResponse {
@@ -20,7 +25,7 @@ export interface ActivitiesResponse {
 // ─────────────────────────────────────────────
 export interface Simulation {
   Calificacion: number
-  Diagnostico_Final: 'Si' | 'No' | null
+  Diagnostico_Final: string | null  // lowercase 'si' / 'no' from API
   Fecha_y_Hora: string
   ID_Caso_de_Uso: number
   ID_Sim: number
@@ -29,28 +34,24 @@ export interface Simulation {
   Pregunta_3: string | null
   Pregunta_4: string | null
   Pregunta_5: string | null
-  Pregunta_6: string | null
   Puntos_1: number | string | null
   Puntos_2: number | string | null
   Puntos_3: number | string | null
   Puntos_4: number | string | null
   Puntos_5: number | string | null
-  Puntos_6: number | string | null
   Puntos_Totales: number
   Respuesta_1: string | null
   Respuesta_2: string | null
   Respuesta_3: string | null
   Respuesta_4: string | null
   Respuesta_5: string | null
-  Respuesta_6: string | null
   Retroalimentacion_1: string | null
   Retroalimentacion_2: string | null
   Retroalimentacion_3: string | null
   Retroalimentacion_4: string | null
   Retroalimentacion_5: string | null
-  Retroalimentacion_6: string | null
-  Usuario: string
-  Usuario_Nombre: string
+  Usuario: string | null
+  Usuario_Nombre: string | null
 }
 
 export type SimulationsResponse = Simulation[] | { data: Simulation[]; total_records?: number }
@@ -64,22 +65,26 @@ export interface Member {
   mb_email: string
   mb_employee_code: string
   mb_admin: number
-  mb_status: string
+  mb_status: number          // 1 = active, 0 = inactive
   mb_date_create: string
   mb_last_login: string | null
   mb_designation: string
   mb_branch: string
   mb_city: string
   mb_country: string
-  mb_route: string
+  mb_ruta: string
   mb_line: string
   mb_state: string
   mb_user: string
   mb_reference: string | null
-  mb_idDepartament: string | null
-  mb_idTag1: string | null
-  mb_idTag2: string | null
-  mb_idTag3: string | null
+  mb_idDepartament: number
+  mb_idTag1: number          // 0 = no line assigned; maps to LineTag.id
+  mb_idTag2: number
+  mb_idTag3: number
+  mb_group: number
+  mb_headquarters: string
+  mb_special_group: number
+  mb_user_token: string
 }
 
 export interface MembersResponse {
@@ -120,16 +125,16 @@ export interface AdminsResponse {
 // DIM_LINE (tag1) — Sanfer-specific
 // ─────────────────────────────────────────────
 export interface LineTag {
-  tag_id: number
-  tag_name: string
-  tag_description?: string
-  tag_status?: string
-  tag_color?: string
-  tag_parent?: number | null
+  id: number
+  name: string
+  description: string
+  idStatus: number   // 1 = active
 }
 
 export interface LinesResponse {
   client: string
   count: number
   data: LineTag[]
+  database?: string
+  table?: string
 }
