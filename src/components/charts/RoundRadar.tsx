@@ -1,4 +1,5 @@
-﻿import {
+import { memo, useMemo } from 'react'
+import {
   RadarChart,
   Radar,
   PolarGrid,
@@ -18,7 +19,7 @@ interface CustomTooltipProps {
   c: TooltipColors
 }
 
-function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   return (
@@ -34,7 +35,7 @@ function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
             c={c} />
     </TooltipShell>
   )
-}
+})
 
 interface Props {
   data: RoundStat[]
@@ -42,13 +43,10 @@ interface Props {
   height?: number
 }
 
-export function RoundRadar({ data, language, height = 260 }: Props) {
+export const RoundRadar = memo(function RoundRadar({ data, language, height = 260 }: Props) {
   const c = useChartColors()
   const tt = useTooltipColors()
-  const radarData = data.map((d) => ({
-    ...d,
-    fullMark: 1,
-  }))
+  const radarData = useMemo(() => data.map((d) => ({ ...d, fullMark: 1 })), [data])
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -79,4 +77,4 @@ export function RoundRadar({ data, language, height = 260 }: Props) {
       </RadarChart>
     </ResponsiveContainer>
   )
-}
+})

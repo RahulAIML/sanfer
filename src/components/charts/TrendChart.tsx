@@ -1,4 +1,5 @@
-﻿import {
+import { memo, useMemo } from 'react'
+import {
   AreaChart,
   Area,
   XAxis,
@@ -24,7 +25,7 @@ interface CustomTooltipProps {
   c: TooltipColors
 }
 
-function CustomTooltip({ active, payload, label, language, c }: CustomTooltipProps) {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, label, language, c }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   const locale = language === 'es' ? es : enUS
@@ -52,7 +53,7 @@ function CustomTooltip({ active, payload, label, language, c }: CustomTooltipPro
             c={c} />
     </TooltipShell>
   )
-}
+})
 
 interface Props {
   data: TrendPoint[]
@@ -60,21 +61,24 @@ interface Props {
   height?: number
 }
 
-export function TrendChart({ data, language, height = 260 }: Props) {
+export const TrendChart = memo(function TrendChart({ data, language, height = 260 }: Props) {
   const locale = language === 'es' ? es : enUS
   const c = useChartColors()
   const tt = useTooltipColors()
 
-  const formatted = data.map((d) => ({
-    ...d,
-    label: (() => {
-      try {
-        return format(parseISO(d.date), 'dd MMM', { locale })
-      } catch {
-        return d.date
-      }
-    })(),
-  }))
+  const formatted = useMemo(
+    () => data.map((d) => ({
+      ...d,
+      label: (() => {
+        try {
+          return format(parseISO(d.date), 'dd MMM', { locale })
+        } catch {
+          return d.date
+        }
+      })(),
+    })),
+    [data, locale],
+  )
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -129,4 +133,4 @@ export function TrendChart({ data, language, height = 260 }: Props) {
       </AreaChart>
     </ResponsiveContainer>
   )
-}
+})

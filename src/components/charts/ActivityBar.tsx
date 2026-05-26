@@ -1,4 +1,5 @@
-﻿import {
+import { memo, useMemo } from 'react'
+import {
   BarChart,
   Bar,
   XAxis,
@@ -23,7 +24,7 @@ interface CustomTooltipProps {
   c: TooltipColors
 }
 
-function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload
   return (
@@ -44,7 +45,7 @@ function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
             c={c} />
     </TooltipShell>
   )
-}
+})
 
 interface Props {
   data: ActivityStat[]
@@ -53,19 +54,17 @@ interface Props {
   height?: number
 }
 
-export function ActivityBar({ data, language, metric = 'avgScore', height = 200 }: Props) {
+export const ActivityBar = memo(function ActivityBar({ data, language, metric = 'avgScore', height = 200 }: Props) {
   const c = useChartColors()
   const tt = useTooltipColors()
 
-  const shortName = (name: string) => {
-    if (name.length <= 18) return name
-    return name.slice(0, 16) + '…'
-  }
-
-  const formatted = data.map((d) => ({
-    ...d,
-    shortName: shortName(d.name),
-  }))
+  const formatted = useMemo(
+    () => data.map((d) => ({
+      ...d,
+      shortName: d.name.length <= 18 ? d.name : d.name.slice(0, 16) + '…',
+    })),
+    [data],
+  )
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -111,4 +110,4 @@ export function ActivityBar({ data, language, metric = 'avgScore', height = 200 
       </BarChart>
     </ResponsiveContainer>
   )
-}
+})

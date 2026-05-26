@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { type LucideIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { cn } from '../../lib/cn'
@@ -25,7 +26,7 @@ interface Props {
   index?: number
 }
 
-export function KPICard({
+export const KPICard = memo(function KPICard({
   label,
   value,
   sublabel,
@@ -81,4 +82,4 @@ export function KPICard({
       )}
     </motion.div>
   )
-}
+})

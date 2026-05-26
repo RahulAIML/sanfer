@@ -1,4 +1,5 @@
-﻿import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { memo, useMemo } from 'react'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import type { Language } from '../../store'
 import { useAppStore } from '../../store'
 import { TooltipShell, TRow, useTooltipColors, type TooltipColors } from './TooltipShell'
@@ -9,7 +10,7 @@ interface CustomTooltipProps {
   c: TooltipColors
 }
 
-function CustomTooltip({ active, payload, c }: CustomTooltipProps) {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, c }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
   const isPass = payload[0].name === 'Passed' || payload[0].name === 'Aprobado'
   return (
@@ -20,7 +21,7 @@ function CustomTooltip({ active, payload, c }: CustomTooltipProps) {
             c={c} />
     </TooltipShell>
   )
-}
+})
 
 interface Props {
   pass: number
@@ -29,7 +30,7 @@ interface Props {
   size?: number
 }
 
-export function PassFailDonut({ pass, fail, language, size = 180 }: Props) {
+export const PassFailDonut = memo(function PassFailDonut({ pass, fail, language, size = 180 }: Props) {
   const theme = useAppStore((s) => s.theme)
   const tt = useTooltipColors()
   const isDark = theme === 'dark'
@@ -38,10 +39,13 @@ export function PassFailDonut({ pass, fail, language, size = 180 }: Props) {
   const passLabel = language === 'es' ? 'Aprobado' : 'Passed'
   const failLabel = language === 'es' ? 'Reprobado' : 'Failed'
 
-  const data = [
-    { name: passLabel, value: pass },
-    { name: failLabel, value: fail },
-  ]
+  const data = useMemo(
+    () => [
+      { name: passLabel, value: pass },
+      { name: failLabel, value: fail },
+    ],
+    [passLabel, failLabel, pass, fail],
+  )
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -95,4 +99,4 @@ export function PassFailDonut({ pass, fail, language, size = 180 }: Props) {
       </div>
     </div>
   )
-}
+})

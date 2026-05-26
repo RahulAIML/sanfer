@@ -1,4 +1,5 @@
-﻿import {
+import { memo } from 'react'
+import {
   BarChart,
   Bar,
   XAxis,
@@ -26,7 +27,7 @@ interface CustomTooltipProps {
   c: TooltipColors
 }
 
-function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
+const CustomTooltip = memo(function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
   if (!active || !payload?.length) return null
   const d = payload[0]
   const isPassing = d.payload.max > PASS_THRESHOLD
@@ -39,7 +40,7 @@ function CustomTooltip({ active, payload, language, c }: CustomTooltipProps) {
             c={c} />
     </TooltipShell>
   )
-}
+})
 
 interface Props {
   data: ScoreBucket[]
@@ -47,7 +48,7 @@ interface Props {
   height?: number
 }
 
-export function ScoreHistogram({ data, language, height = 200 }: Props) {
+export const ScoreHistogram = memo(function ScoreHistogram({ data, language, height = 200 }: Props) {
   const c = useChartColors()
   const tt = useTooltipColors()
   return (
@@ -79,4 +80,4 @@ export function ScoreHistogram({ data, language, height = 200 }: Props) {
       </BarChart>
     </ResponsiveContainer>
   )
-}
+})
