@@ -17,7 +17,7 @@ export default defineConfig({
   preview: {
     host: '0.0.0.0',
     port: parseInt(process.env.PORT ?? '4174'),
-    allowedHosts: ['dashboard-sanfer.onrender.com'],
+    allowedHosts: ['dashboard-sanfer.onrender.com', 'sanfer-dashboard.onrender.com'],
     proxy: {
       '/sanfer': {
         target: 'https://serv.aux-rolplay.com',
