@@ -27,7 +27,7 @@ function LineBarTooltip({ active, payload, label, es, c }: { active?: boolean; p
 }
 
 export default function BusinessLinesPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const es = language === 'es'
   const c = useChartColors()

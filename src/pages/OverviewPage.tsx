@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react'
+import { memo, useState, useMemo, useRef, useEffect } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import {
   computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution,
@@ -65,7 +65,7 @@ function ScoreDistTooltip({ active, payload, es, c }: { active?: boolean; payloa
 }
 
 export default function OverviewPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const es = language === 'es'
 
@@ -406,7 +406,7 @@ export default function OverviewPage() {
   )
 }
 
-function KpiCard({
+const KpiCard = memo(function KpiCard({
   icon: Icon, label, value, sub, color,
 }: {
   icon: React.ComponentType<{ className?: string }>
@@ -431,4 +431,4 @@ function KpiCard({
       </div>
     </div>
   )
-}
+})

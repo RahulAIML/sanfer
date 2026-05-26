@@ -1,6 +1,5 @@
 import { memo } from 'react'
 import { type LucideIcon } from 'lucide-react'
-import { motion } from 'framer-motion'
 import { cn } from '../../lib/cn'
 
 type Variant = 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'indigo'
@@ -40,15 +39,13 @@ export const KPICard = memo(function KPICard({
   const v = VARIANT_STYLES[variant]
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.06, ease: 'easeOut' }}
+    <div
       className={cn(
-        'card group p-5 flex flex-col gap-4 transition-all duration-200',
+        'card group p-5 flex flex-col gap-4 transition-all duration-200 kpi-card-in',
         v.glow,
         className,
       )}
+      style={{ animationDelay: `${index * 60}ms` }}
     >
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -80,6 +77,6 @@ export const KPICard = memo(function KPICard({
       {sublabel && (
         <p className="text-xs text-slate-600 -mt-2 leading-relaxed">{sublabel}</p>
       )}
-    </motion.div>
+    </div>
   )
 })

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Globe, RefreshCw, Sun, Moon, Menu } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAppStore, type Language } from '../../store'
@@ -9,8 +10,12 @@ const LANGS: { code: Language; label: string; flag: string }[] = [
   { code: 'en', label: 'EN', flag: '🇺🇸' },
 ]
 
-export function TopBar() {
-  const { language, setLanguage, theme, toggleTheme, toggleMobileMenu } = useAppStore()
+export const TopBar = memo(function TopBar() {
+  const language = useAppStore((s) => s.language)
+  const setLanguage = useAppStore((s) => s.setLanguage)
+  const theme = useAppStore((s) => s.theme)
+  const toggleTheme = useAppStore((s) => s.toggleTheme)
+  const toggleMobileMenu = useAppStore((s) => s.toggleMobileMenu)
   const t = useTranslation(language)
   const queryClient = useQueryClient()
 
@@ -65,4 +70,4 @@ export function TopBar() {
       </div>
     </header>
   )
-}
+})

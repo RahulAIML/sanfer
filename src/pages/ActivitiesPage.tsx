@@ -22,12 +22,13 @@ function ActivityBarTooltip({ active, payload, es, c }: { active?: boolean; payl
 }
 
 export default function ActivitiesPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const c  = useChartColors()
   const tt = useTooltipColors()
   const es = language === 'es'
-  const { isLoading, isError, actStats, refetch } = useDashboardData()
+  const { simsLoading, activitiesLoading, isError, actStats, refetch } = useDashboardData()
+  const isLoading = simsLoading || activitiesLoading
 
   if (isLoading) {
     return (

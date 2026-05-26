@@ -1,12 +1,16 @@
-import { useEffect, type ReactNode } from 'react'
+import { lazy, memo, Suspense, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
-import { AIAssistant } from '../ai/AIAssistant'
 import { useAppStore } from '../../store'
 
-export function Shell({ children }: { children: ReactNode }) {
+const AIAssistant = lazy(() =>
+  import('../ai/AIAssistant').then((m) => ({ default: m.AIAssistant })),
+)
+
+export const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
   const theme = useAppStore((s) => s.theme)
-  const { mobileMenuOpen, setMobileMenuOpen } = useAppStore()
+  const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen)
+  const setMobileMenuOpen = useAppStore((s) => s.setMobileMenuOpen)
 
   useEffect(() => {
     const html = document.documentElement
@@ -32,7 +36,9 @@ export function Shell({ children }: { children: ReactNode }) {
           </div>
         </main>
       </div>
-      <AIAssistant />
+      <Suspense fallback={null}>
+        <AIAssistant />
+      </Suspense>
     </div>
   )
-}
+})

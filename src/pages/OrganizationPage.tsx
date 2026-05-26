@@ -5,11 +5,11 @@ import { Building2, Users, Mail, Shield, UserCheck } from 'lucide-react'
 import type { OrgNode } from '../lib/analytics'
 
 export default function OrganizationPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
-  const { isLoading, isError, orgTree, members, admins, refetch } = useDashboardData()
+  const { orgLoading, isError, orgTree, members, admins, refetch } = useDashboardData()
 
-  if (isLoading) {
+  if (orgLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 skeleton rounded-lg" />

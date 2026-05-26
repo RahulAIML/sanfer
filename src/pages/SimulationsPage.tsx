@@ -1,4 +1,4 @@
-import { useState, Fragment } from 'react'
+import { useState, useMemo, Fragment } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
@@ -6,24 +6,24 @@ import { Search, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp } from 
 import { cn } from '../lib/cn'
 
 export default function SimulationsPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
-  const { isLoading, isError, sims, activities, refetch } = useDashboardData()
+  const { simsLoading, activitiesLoading, isError, sims, activities, refetch } = useDashboardData()
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
 
-  const actMap = new Map(activities.map((a) => [a.ID_Caso_de_Uso, a]))
+  const actMap = useMemo(() => new Map(activities.map((a) => [a.ID_Caso_de_Uso, a])), [activities])
 
-  const filtered = sims.filter((s) => {
+  const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return (
+    return sims.filter((s) =>
       (s.Usuario_Nombre ?? '').toLowerCase().includes(q) ||
       actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso?.toLowerCase().includes(q) ||
       s.Fecha_y_Hora.includes(q)
     )
-  })
+  }, [sims, actMap, search])
 
-  if (isLoading) {
+  if (simsLoading || activitiesLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-40 skeleton rounded-lg" />

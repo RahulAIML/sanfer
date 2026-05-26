@@ -4,7 +4,7 @@ import { useTranslation } from '../lib/i18n'
 import { TrendingUp, AlertTriangle, Lightbulb } from 'lucide-react'
 
 export default function CoachingPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const { isLoading, isError, kpis, userStats, actStats, roundStats, refetch } = useDashboardData()
 

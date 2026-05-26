@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion'
+import { memo, useState, useEffect } from 'react'
 import {
   LayoutDashboard, PlayCircle, MessageSquare, Brain, Trophy,
   Activity, Building2, ChevronLeft, ChevronRight,
@@ -47,32 +47,26 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
   },
 ]
 
-function NavContent({
+const NavContent = memo(function NavContent({
   collapsed,
   onNavClick,
 }: {
   collapsed: boolean
   onNavClick?: () => void
 }) {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
 
   return (
     <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-2 space-y-5">
       {NAV_GROUPS.map((group) => (
         <div key={group.labelKey}>
-          <AnimatePresence>
-            {!collapsed && (
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-700"
-              >
-                {t(group.labelKey)}
-              </motion.p>
-            )}
-          </AnimatePresence>
+          <p className={cn(
+            'px-2 mb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-700 transition-[opacity,height] duration-150 overflow-hidden',
+            collapsed ? 'opacity-0 h-0 mb-0' : 'opacity-100 h-4',
+          )}>
+            {t(group.labelKey)}
+          </p>
           <div className="space-y-0.5">
             {group.items.map((item) => (
               <NavLink
@@ -92,32 +86,18 @@ function NavContent({
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <motion.div
-                        layoutId="active-nav"
-                        className="absolute inset-0 rounded-lg bg-accent/10"
-                        transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                      />
-                    )}
                     <item.icon
                       className={cn(
                         'w-4 h-4 shrink-0 relative z-10 transition-colors',
                         isActive ? 'text-accent' : 'text-slate-600 group-hover:text-slate-300',
                       )}
                     />
-                    <AnimatePresence>
-                      {!collapsed && (
-                        <motion.span
-                          initial={{ opacity: 0, x: -4 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.12 }}
-                          className="relative z-10 whitespace-nowrap font-medium"
-                        >
-                          {t(item.key)}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
+                    <span className={cn(
+                      'relative z-10 whitespace-nowrap font-medium transition-[opacity] duration-150',
+                      collapsed ? 'opacity-0 w-0 overflow-hidden pointer-events-none' : 'opacity-100',
+                    )}>
+                      {t(item.key)}
+                    </span>
                   </>
                 )}
               </NavLink>
@@ -127,19 +107,33 @@ function NavContent({
       ))}
     </nav>
   )
-}
+})
 
-export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar, mobileMenuOpen, setMobileMenuOpen, language } = useAppStore()
+export const Sidebar = memo(function Sidebar() {
+  const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen)
+  const setMobileMenuOpen = useAppStore((s) => s.setMobileMenuOpen)
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
+
+  // Animate mobile drawer close without framer-motion
+  const [closing, setClosing] = useState(false)
+  useEffect(() => {
+    if (!mobileMenuOpen) setClosing(false)
+  }, [mobileMenuOpen])
+
+  function closeMobile() {
+    setClosing(true)
+    setTimeout(() => setMobileMenuOpen(false), 220)
+  }
 
   return (
     <>
       {/* ── Desktop sidebar (lg+) ── */}
-      <motion.aside
-        animate={{ width: sidebarCollapsed ? 72 : 240 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 35 }}
-        className="relative hidden lg:flex flex-col bg-surface border-r border-line/40 h-screen shrink-0 overflow-hidden z-20"
+      <aside
+        style={{ width: sidebarCollapsed ? 72 : 240 }}
+        className="relative hidden lg:flex flex-col bg-surface border-r border-line/40 h-screen shrink-0 overflow-hidden z-20 transition-[width] duration-200 ease-in-out"
       >
         {/* Logo */}
         <div className="flex items-center h-16 px-4 border-b border-line/30 shrink-0">
@@ -148,24 +142,17 @@ export function Sidebar() {
               <text x="4" y="48" fontFamily="Georgia, 'Times New Roman', serif" fontSize="52" fontWeight="700" fontStyle="italic" fill="#CC1F2D" letterSpacing="-1">sanfer</text>
               <text x="200" y="22" fontFamily="Arial, sans-serif" fontSize="14" fill="#CC1F2D">®</text>
             </svg>
-            <AnimatePresence>
-              {!sidebarCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="flex flex-col min-w-0"
-                >
-                  <span className="text-slate-100 font-semibold text-sm leading-tight tracking-tight whitespace-nowrap">
-                    Sanfer
-                  </span>
-                  <span className="text-slate-600 text-[10px] leading-tight whitespace-nowrap">
-                    {t('sidebar_tagline')}
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div className={cn(
+              'flex flex-col min-w-0 overflow-hidden transition-[opacity,width] duration-150',
+              sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100',
+            )}>
+              <span className="text-slate-100 font-semibold text-sm leading-tight tracking-tight whitespace-nowrap">
+                Sanfer
+              </span>
+              <span className="text-slate-600 text-[10px] leading-tight whitespace-nowrap">
+                {t('sidebar_tagline')}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -179,18 +166,23 @@ export function Sidebar() {
         >
           {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
-      </motion.aside>
+      </aside>
 
       {/* ── Mobile sidebar drawer (< lg) ── */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.aside
-            key="mobile-sidebar"
-            initial={{ x: -260 }}
-            animate={{ x: 0 }}
-            exit={{ x: -260 }}
-            transition={{ type: 'spring', stiffness: 320, damping: 35 }}
-            className="fixed inset-y-0 left-0 z-50 w-[240px] flex flex-col bg-surface border-r border-line/40 lg:hidden"
+      {(mobileMenuOpen || closing) && (
+        <>
+          <div
+            className={cn(
+              'fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity duration-220',
+              closing ? 'opacity-0' : 'opacity-100',
+            )}
+            onClick={closeMobile}
+          />
+          <aside
+            className={cn(
+              'fixed inset-y-0 left-0 z-50 w-[240px] flex flex-col bg-surface border-r border-line/40 lg:hidden',
+              closing ? 'translate-x-[-260px] transition-transform duration-[220ms] ease-in' : 'animate-slide-in-left',
+            )}
           >
             {/* Logo + close */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-line/30 shrink-0">
@@ -202,17 +194,17 @@ export function Sidebar() {
                 </div>
               </div>
               <button
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMobile}
                 className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <NavContent collapsed={false} onNavClick={() => setMobileMenuOpen(false)} />
-          </motion.aside>
-        )}
-      </AnimatePresence>
+            <NavContent collapsed={false} onNavClick={closeMobile} />
+          </aside>
+        </>
+      )}
     </>
   )
-}
+})

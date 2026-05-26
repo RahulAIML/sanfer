@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins } from '../api/client'
 import {
@@ -19,7 +19,12 @@ export function useDashboardData() {
   const membersQ = useQuery({ queryKey: ['members'], queryFn: fetchMembers })
   const adminsQ = useQuery({ queryKey: ['admins'], queryFn: fetchAdmins })
 
-  const isLoading = activitiesQ.isLoading || simsQ.isLoading || membersQ.isLoading || adminsQ.isLoading
+  // Fine-grained loading flags so pages can render as soon as their data arrives
+  const simsLoading = simsQ.isLoading
+  const activitiesLoading = activitiesQ.isLoading
+  const orgLoading = membersQ.isLoading || adminsQ.isLoading
+  // Full loading: wait for all four (used by pages that need kpis / org tree)
+  const isLoading = simsLoading || activitiesLoading || orgLoading
   const isError = activitiesQ.isError || simsQ.isError || membersQ.isError || adminsQ.isError
 
   const activities = useMemo(() => activitiesQ.data?.data ?? [], [activitiesQ.data])
@@ -27,52 +32,53 @@ export function useDashboardData() {
   const members = useMemo(() => membersQ.data?.data ?? [], [membersQ.data])
   const admins = useMemo(() => adminsQ.data?.data ?? [], [adminsQ.data])
 
+  // Analytics — each memoized independently so only the affected slice reruns
   const kpis = useMemo(
     () => (isLoading || isError ? null : computeKPIs(sims, activities, members, admins)),
     [isLoading, isError, sims, activities, members, admins],
   )
   const trend = useMemo(
-    () => (isLoading || isError ? null : computeTrend(sims)),
-    [isLoading, isError, sims],
+    () => (simsLoading || isError ? null : computeTrend(sims)),
+    [simsLoading, isError, sims],
   )
   const roundStats = useMemo(
-    () => (isLoading || isError ? null : computeRoundStats(sims)),
-    [isLoading, isError, sims],
+    () => (simsLoading || isError ? null : computeRoundStats(sims)),
+    [simsLoading, isError, sims],
   )
   const actStats = useMemo(
-    () => (isLoading || isError ? null : computeActivityStats(sims, activities)),
-    [isLoading, isError, sims, activities],
+    () => (simsLoading || activitiesLoading || isError ? null : computeActivityStats(sims, activities)),
+    [simsLoading, activitiesLoading, isError, sims, activities],
   )
   const userStats = useMemo(
-    () => (isLoading || isError ? null : computeUserStats(sims)),
-    [isLoading, isError, sims],
+    () => (simsLoading || isError ? null : computeUserStats(sims)),
+    [simsLoading, isError, sims],
   )
   const scoreDist = useMemo(
-    () => (isLoading || isError ? null : computeScoreDistribution(sims)),
-    [isLoading, isError, sims],
+    () => (simsLoading || isError ? null : computeScoreDistribution(sims)),
+    [simsLoading, isError, sims],
   )
   const orgTree = useMemo(
-    () => (isLoading || isError ? null : buildOrgTree(admins, members)),
-    [isLoading, isError, admins, members],
+    () => (orgLoading || isError ? null : buildOrgTree(admins, members)),
+    [orgLoading, isError, admins, members],
   )
   const feedback = useMemo(
-    () => (isLoading || isError ? null : extractFeedback(sims)),
-    [isLoading, isError, sims],
+    () => (simsLoading || isError ? null : extractFeedback(sims)),
+    [simsLoading, isError, sims],
   )
 
-  const refetch = useMemo(
-    () => () => {
-      activitiesQ.refetch()
-      simsQ.refetch()
-      membersQ.refetch()
-      adminsQ.refetch()
-    },
+  const refetch = useCallback(() => {
+    activitiesQ.refetch()
+    simsQ.refetch()
+    membersQ.refetch()
+    adminsQ.refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  )
+  }, [])
 
   return {
     isLoading,
+    simsLoading,
+    activitiesLoading,
+    orgLoading,
     isError,
     activities,
     sims,

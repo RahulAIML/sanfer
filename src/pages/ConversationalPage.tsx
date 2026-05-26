@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
@@ -106,7 +107,7 @@ function TrendIcon({ passRate }: { passRate: number }) {
 }
 
 // ─── Simulator card ───────────────────────────────────────────────────────────
-function SimulatorCard({ stat, rank, es }: { stat: ActivityStat; rank: number; es: boolean }) {
+const SimulatorCard = memo(function SimulatorCard({ stat, rank, es }: { stat: ActivityStat; rank: number; es: boolean }) {
   const tier = getTier(stat)
   const feedback = getFeedbackLine(stat, es)
 
@@ -174,17 +175,18 @@ function SimulatorCard({ stat, rank, es }: { stat: ActivityStat; rank: number; e
       </div>
     </div>
   )
-}
+})
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function ConversationalPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const c  = useChartColors()
   const tt = useTooltipColors()
   const es = language === 'es'
 
-  const { isLoading, isError, roundStats, actStats, refetch } = useDashboardData()
+  const { simsLoading, activitiesLoading, isError, roundStats, actStats, refetch } = useDashboardData()
+  const isLoading = simsLoading || activitiesLoading
 
   if (isLoading) {
     return (

@@ -5,11 +5,11 @@ import { useTranslation } from '../lib/i18n'
 import { Trophy, Medal, TrendingUp, TrendingDown, Search, X } from 'lucide-react'
 
 export default function LeaderboardPage() {
-  const { language } = useAppStore()
+  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
-  const { isLoading, isError, userStats, refetch } = useDashboardData()
+  const { simsLoading, isError, userStats, refetch } = useDashboardData()
 
-  if (isLoading) {
+  if (simsLoading) {
     return (
       <div className="space-y-4">
         <div className="h-8 w-48 skeleton rounded-lg" />
