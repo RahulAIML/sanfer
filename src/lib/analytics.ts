@@ -45,14 +45,11 @@ function countApplicable(s: Simulation): number {
   return INTERACTION_KEYS.filter((k) => isApplicable(s[k])).length
 }
 
-/**
- * Correct avg score: total points earned / total applicable interactions.
- * e.g. 100 pts across 120 interactions = 83%.
- */
+// Calificacion is a 0-100 percentage; guard against null/non-numeric API values
 function avgScore(sims: Simulation[]): number {
-  const totalPts  = sims.reduce((sum, s) => sum + s.Puntos_Totales, 0)
-  const totalEvts = sims.reduce((sum, s) => sum + countApplicable(s), 0)
-  return pct(totalPts, totalEvts)
+  const valid = sims.map((s) => Number(s.Calificacion)).filter((n) => Number.isFinite(n))
+  if (!valid.length) return 0
+  return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
 }
 
 // ─────────────────────────────────────────────
