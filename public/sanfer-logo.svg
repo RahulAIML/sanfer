@@ -1,0 +1,17 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Sanfer logo — stylized S with pharma cross motif -->
+  <defs>
+    <linearGradient id="sanferGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E3A6E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2563EB;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="url(#sanferGrad)" />
+  <!-- Stylized S letter -->
+  <path d="M70 68 C70 55 85 48 100 48 C120 48 134 58 134 74 C134 88 122 96 108 102 C94 108 78 114 78 130 C78 144 92 154 108 154 C124 154 134 146 134 134"
+        stroke="white" stroke-width="16" fill="none" stroke-linecap="round"/>
+  <!-- Accent dots -->
+  <circle cx="70" cy="68" r="7" fill="#60A5FA"/>
+  <circle cx="134" cy="134" r="7" fill="#60A5FA"/>
+</svg>

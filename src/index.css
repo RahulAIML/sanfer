@@ -1,0 +1,251 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Theme color variables (RGB channels for opacity modifier support) ── */
+:root {
+  --color-bg: 255 255 255;
+  --color-surface: 248 250 252;
+  --color-card: 255 255 255;
+  --color-card-hover: 241 245 249;
+  --color-line: 226 232 240;
+  --color-line-subtle: 241 245 249;
+  --text-base: #0f172a;
+}
+
+.dark {
+  --color-bg: 7 14 28;
+  --color-surface: 12 22 40;
+  --color-card: 15 26 46;
+  --color-card-hover: 21 32 53;
+  --color-line: 26 45 69;
+  --color-line-subtle: 17 32 56;
+  --text-base: #f8fafc;
+}
+/* ──────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-bg font-sans;
+    color: var(--text-base);
+    margin: 0;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: rgba(59, 130, 246, 0.3);
+    color: #fff;
+  }
+
+  /* Custom scrollbar — webkit */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.2);
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+  }
+  .dark * {
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+}
+
+/* ─── Light-mode text color remaps ────────────────────────────── */
+/* Near-white text classes are invisible on a white background;
+   remap them to dark equivalents when not in dark mode.          */
+html:not(.dark) .text-slate-50  { color: #0f172a; }
+html:not(.dark) .text-slate-100 { color: #1e293b; }
+html:not(.dark) .text-slate-200 { color: #334155; }
+html:not(.dark) .text-slate-300 { color: #475569; }
+html:not(.dark) .text-slate-400 { color: #64748b; }
+
+/* Dark mode: boost muted text so it's readable on navy */
+.dark .text-slate-500 { color: #94a3b8; }
+.dark .text-slate-600 { color: #94a3b8; }
+/* ─────────────────────────────────────────────────────────────── */
+
+@layer components {
+  .card {
+    @apply bg-card border rounded-xl;
+    border-color: rgb(var(--color-line) / 0.6);
+  }
+  .card-interactive {
+    @apply card cursor-pointer transition-all duration-200 hover:bg-card-hover;
+    border-color: rgb(var(--color-line) / 0.6);
+  }
+  .card-interactive:hover {
+    border-color: rgb(var(--color-line) / 1);
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium;
+  }
+  .btn-primary {
+    @apply bg-accent hover:bg-blue-400 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 flex items-center gap-2;
+  }
+  .btn-ghost {
+    @apply px-3 py-2 rounded-lg text-sm transition-colors duration-150 flex items-center gap-2;
+    color: var(--text-base);
+    opacity: 0.6;
+  }
+  .btn-ghost:hover {
+    background: rgba(0, 0, 0, 0.05);
+    opacity: 1;
+  }
+  .dark .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .input {
+    @apply bg-surface border rounded-lg px-3 py-2 text-sm placeholder:text-slate-400 focus:outline-none transition-colors;
+    border-color: rgb(var(--color-line) / 0.6);
+    color: var(--text-base);
+  }
+  .input:focus {
+    box-shadow: 0 0 0 1px rgba(59,130,246,0.5);
+    border-color: rgba(59,130,246,0.4);
+  }
+  .select {
+    @apply input cursor-pointer appearance-none pr-8;
+  }
+  .page-fade {
+    animation: pageFadeIn 0.25s ease-out both;
+  }
+  .metric-value {
+    @apply text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight;
+    color: var(--text-base);
+  }
+  /* Responsive table wrapper */
+  .table-responsive {
+    @apply w-full overflow-x-auto -mx-0;
+  }
+  /* Prevent long words from overflowing cards */
+  .card, .card-interactive {
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+  /* Safe-area aware bottom padding (notched iPhones) */
+  .safe-bottom {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  /* Full-height using dynamic viewport — adapts to mobile browser chrome */
+  .h-dvh {
+    height: 100dvh;
+  }
+  /* Mobile-friendly table cells */
+  .td-mobile {
+    @apply px-2 sm:px-4 py-2 sm:py-3;
+  }
+  .chart-container {
+    @apply w-full;
+  }
+  .tooltip-dark {
+    background: #111827 !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35) !important;
+    color: #e2e8f0 !important;
+    font-size: 12px !important;
+  }
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to   { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.04) 25%,
+    rgba(0,0,0,0.08) 50%,
+    rgba(0,0,0,0.04) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+.dark .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+}
+
+/* Recharts overrides */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(0,0,0,0.06) !important;
+}
+.dark .recharts-cartesian-grid-horizontal line,
+.dark .recharts-cartesian-grid-vertical line {
+  stroke: rgba(255,255,255,0.04) !important;
+}
+
+.recharts-text {
+  fill: #334155 !important;
+  font-size: 11px !important;
+  font-family: 'Inter', sans-serif !important;
+}
+.dark .recharts-text {
+  fill: #94a3b8 !important;
+}
+
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-active-dot circle {
+  stroke: var(--color-card) !important;
+}
+
+.recharts-polar-grid-angle line,
+.recharts-polar-grid-concentric path {
+  stroke: rgba(0,0,0,0.08) !important;
+}
+.dark .recharts-polar-grid-angle line,
+.dark .recharts-polar-grid-concentric path {
+  stroke: rgba(255,255,255,0.06) !important;
+}
+
+.recharts-polar-angle-axis-tick text {
+  fill: #334155 !important;
+  font-size: 11px !important;
+}
+.dark .recharts-polar-angle-axis-tick text {
+  fill: #94a3b8 !important;
+}
