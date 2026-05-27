@@ -5,7 +5,7 @@ import {
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { DateRangeFilter, inDateRange } from '../components/ui/DateRangeFilter'
+import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import {
   BarChart3, PlayCircle, CheckCircle2, Users, Download,
@@ -80,9 +80,13 @@ export default function OverviewPage() {
   } = useDashboardData()
   // Page can render as soon as sims+activities arrive — org data populates later
   const isLoading = simsLoading || activitiesLoading
-  // ── Date range ──────────────────────────────
-  const [from, setFrom] = useState('')
-  const [to,   setTo]   = useState('')
+  // ── Date range — driven by global Zustand store ─────────────────────────────
+  const dateFrom     = useAppStore((s) => s.dateFrom)
+  const dateTo       = useAppStore((s) => s.dateTo)
+  const setDateRange = useAppStore((s) => s.setDateRange)
+  // Convert null → '' so date inputs don't see a controlled→uncontrolled flip
+  const from = dateFrom ?? ''
+  const to   = dateTo   ?? ''
 
   // ── User selection filter ────────────────────
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set())
@@ -121,33 +125,28 @@ export default function OverviewPage() {
     })
   }
 
-  // ── Filter sims by date range + selected users ──
+  // ── Filter sims by selected users ──────────────────────────────────────────
+  // Date filtering is handled globally in useDashboardData (reads from store),
+  // so `sims` here is already date-filtered. We only need the user-level slice.
   const filteredSims = useMemo(() => {
-    let result = sims
-    if (from || to) {
-      result = result.filter((s) => {
-        const date = s.Fecha_y_Hora?.split('T')[0]
-        return date ? inDateRange(date, from, to) : false
-      })
-    }
-    if (selectedUsers.size > 0) {
-      result = result.filter((s) => s.Usuario_Nombre && selectedUsers.has(s.Usuario_Nombre))
-    }
-    return result
-  }, [sims, from, to, selectedUsers])
+    if (selectedUsers.size === 0) return sims
+    return sims.filter((s) => s.Usuario_Nombre && selectedUsers.has(s.Usuario_Nombre))
+  }, [sims, selectedUsers])
 
-  const dateActive = !!(from || to) || selectedUsers.size > 0
+  // anyFilterActive: badge / UX indicator (date filter OR user filter)
+  const anyFilterActive  = !!(dateFrom || dateTo) || selectedUsers.size > 0
+  // userFilterActive: only re-derive stats when the user-level filter adds a slice on top
+  const userFilterActive = selectedUsers.size > 0
 
-  // Re-derive all stats from filtered sims when date range is active
-  const activeKpis     = useMemo(() => dateActive ? computeKPIs(filteredSims, activities, members, admins) : kpis,                            [dateActive, filteredSims, activities, members, admins, kpis])
-  const activeActStats = useMemo(() => dateActive ? computeActivityStats(filteredSims, activities) : actStats, [dateActive, filteredSims, activities, actStats])
-  const activeScoreDist= useMemo(() => dateActive ? computeScoreDistribution(filteredSims) : scoreDist,        [dateActive, filteredSims, scoreDist])
-  const activeUserStats= useMemo(() => dateActive ? computeUserStats(filteredSims) : userStats,                [dateActive, filteredSims, userStats])
+  // Re-derive all stats from user-filtered sims when user filter is active.
+  // When only a date filter is set, the hook already provides correct stats — no re-derive needed.
+  const activeKpis     = useMemo(() => userFilterActive ? computeKPIs(filteredSims, activities, members, admins) : kpis,                              [userFilterActive, filteredSims, activities, members, admins, kpis])
+  const activeActStats = useMemo(() => userFilterActive ? computeActivityStats(filteredSims, activities) : actStats, [userFilterActive, filteredSims, activities, actStats])
+  const activeScoreDist= useMemo(() => userFilterActive ? computeScoreDistribution(filteredSims) : scoreDist,        [userFilterActive, filteredSims, scoreDist])
+  const activeUserStats= useMemo(() => userFilterActive ? computeUserStats(filteredSims) : userStats,                [userFilterActive, filteredSims, userStats])
 
-  const filteredTrend = useMemo(() => {
-    if (!trend?.length || (!from && !to)) return trend ?? []
-    return trend.filter((p) => inDateRange(p.date, from, to))
-  }, [trend, from, to])
+  // trend from useDashboardData is already date-filtered — use it directly
+  const filteredTrend = trend ?? []
 
   // ── CSV exports ─────────────────────────────
   function exportSimCSV() {
@@ -182,7 +181,7 @@ export default function OverviewPage() {
     )
   }
 
-  if (isError || (!dateActive && !activeKpis)) {
+  if (isError || (!anyFilterActive && !activeKpis)) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <p className="text-slate-400">{t('error')}</p>
@@ -210,10 +209,23 @@ export default function OverviewPage() {
           <p className="text-slate-500 text-sm mt-0.5">{t('page_overview_subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <DateRangeFilter
-            from={from} to={to} onFrom={setFrom} onTo={setTo}
-            label={es ? 'Período' : 'Period'}
-          />
+          <div className="flex items-center gap-1.5">
+            <DateRangeFilter
+              from={from} to={to}
+              onFrom={(v) => setDateRange(v || null, dateTo)}
+              onTo={(v)   => setDateRange(dateFrom, v || null)}
+              label={es ? 'Período' : 'Period'}
+            />
+            {(dateFrom || dateTo) && (
+              <button
+                onClick={() => setDateRange(null, null)}
+                title={es ? 'Limpiar fechas' : 'Clear dates'}
+                className="p-1 rounded-md text-slate-500 hover:text-danger hover:bg-danger/10 transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
           {/* User filter dropdown */}
           <div className="relative" ref={userDropdownRef}>
             <button
@@ -298,7 +310,7 @@ export default function OverviewPage() {
         <div className="card p-5 sm:col-span-2 lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
-            {dateActive && (
+            {anyFilterActive && (
               <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
                 {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
               </span>

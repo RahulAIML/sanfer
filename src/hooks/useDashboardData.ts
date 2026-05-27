@@ -1,5 +1,6 @@
 import { useMemo, useCallback } from 'react'
 import { useSimulations, useActivities, useMembers, useAdmins } from '../api/queries'
+import { useAppStore } from '../store'
 import {
   computeKPIs,
   computeTrend,
@@ -20,6 +21,10 @@ export function useDashboardData() {
   const membersQ    = useMembers()
   const adminsQ     = useAdmins()
 
+  // Global date filter from Zustand store — client-side slice of the 30-day cache
+  const dateFrom = useAppStore((s) => s.dateFrom)
+  const dateTo   = useAppStore((s) => s.dateTo)
+
   // Fine-grained loading flags so pages can render as soon as their data arrives
   const simsLoading = simsQ.isLoading
   const activitiesLoading = activitiesQ.isLoading
@@ -31,9 +36,20 @@ export function useDashboardData() {
   // useActivities / useMembers / useAdmins use `select` transforms in queries.ts,
   // so .data is already the array — no .data?.data needed.
   const activities = useMemo(() => activitiesQ.data ?? [], [activitiesQ.data])
-  const sims       = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
   const members    = useMemo(() => membersQ.data ?? [], [membersQ.data])
   const admins     = useMemo(() => adminsQ.data ?? [], [adminsQ.data])
+
+  // Apply test-user filter, then apply global date filter from store.
+  // No re-fetch needed: the API result is cached in the 30-day window; we just
+  // slice it further in memory whenever the store's dateFrom/dateTo change.
+  const sims = useMemo(() => {
+    const base = filterTestUsers(simsQ.data ?? [])
+    if (!dateFrom && !dateTo) return base
+    return base.filter((s) => {
+      const d = s.Fecha_y_Hora?.split('T')[0] ?? ''
+      return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
+    })
+  }, [simsQ.data, dateFrom, dateTo])
 
   // Analytics — each memoized independently so only the affected slice reruns
   // kpis computes as soon as sims+activities arrive; org counts (members/admins)
