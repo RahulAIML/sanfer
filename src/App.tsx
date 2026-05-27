@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/layout/Shell'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { ChartSkeleton } from './components/ui/Skeleton'
-import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins, fetchLines } from './api/client'
+import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins } from './api/client'
 import OverviewPage from './pages/OverviewPage'
 
 const SimulationsPage = lazy(() => import('./pages/SimulationsPage'))
@@ -19,7 +19,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 const STALE = 5 * 60 * 1000
-const GC    = 15 * 60 * 1000
+const GC    = 30 * 60 * 1000
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,7 +35,7 @@ const queryClient = new QueryClient({
 // ─── localStorage cache persistence ───────────────────────────────────────────
 // Restores the previous session's API responses so the dashboard feels instant
 // on every page load after the first. Fresh data fetches in the background.
-const CACHE_KEY = 'sanfer-qc-v2'
+const CACHE_KEY = 'sanfer-qc-v3'
 
 function restoreCache() {
   try {
@@ -75,11 +75,11 @@ queryClient.getQueryCache().subscribe((event) => {
 // Fire all API requests immediately at module load — before React renders anything.
 // Combined with cache restore above: if cache is warm, components see data on
 // first render; if cold, requests are already in-flight when components mount.
-queryClient.prefetchQuery({ queryKey: ['simulations'], queryFn: fetchSimulations, staleTime: STALE })
-queryClient.prefetchQuery({ queryKey: ['activities'],  queryFn: fetchActivities,  staleTime: STALE })
-queryClient.prefetchQuery({ queryKey: ['members'],     queryFn: fetchMembers,     staleTime: STALE })
-queryClient.prefetchQuery({ queryKey: ['admins'],      queryFn: fetchAdmins,      staleTime: STALE })
-queryClient.prefetchQuery({ queryKey: ['lines'],       queryFn: fetchLines,       staleTime: STALE })
+// Wrap functions with updated signatures so the prefetch call matches TanStack's queryFn shape
+queryClient.prefetchQuery({ queryKey: ['simulations'], queryFn: ({ signal }) => fetchSimulations(null, null, signal), staleTime: STALE })
+queryClient.prefetchQuery({ queryKey: ['activities'],  queryFn: ({ signal }) => fetchActivities(signal),             staleTime: STALE })
+queryClient.prefetchQuery({ queryKey: ['members'],     queryFn: ({ signal }) => fetchMembers(signal),                staleTime: STALE })
+queryClient.prefetchQuery({ queryKey: ['admins'],      queryFn: ({ signal }) => fetchAdmins(signal),                 staleTime: STALE })
 
 function PageFallback() {
   return (

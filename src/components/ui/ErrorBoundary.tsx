@@ -55,3 +55,50 @@ function Fallback() {
 export function ErrorBoundary({ children }: Props) {
   return <ErrorBoundaryInner>{children}</ErrorBoundaryInner>
 }
+
+// ── Compact inline boundary for individual sections ──────────────────────────
+
+interface SectionState {
+  hasError: boolean
+  errorMsg: string
+}
+
+interface SectionProps {
+  children: ReactNode
+  label?: string
+}
+
+class SectionErrorBoundaryInner extends Component<SectionProps, SectionState> {
+  constructor(props: SectionProps) {
+    super(props)
+    this.state = { hasError: false, errorMsg: '' }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, errorMsg: error.message }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="card p-5 flex flex-col items-center gap-2 text-center">
+          <AlertTriangle className="w-5 h-5 text-warning" />
+          <p className="text-xs text-slate-500">
+            {this.props.label ? `${this.props.label} failed to render` : 'Section unavailable'}
+          </p>
+          <button
+            className="text-[11px] text-accent hover:underline"
+            onClick={() => this.setState({ hasError: false, errorMsg: '' })}
+          >
+            Retry
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
+
+export function SectionErrorBoundary({ children, label }: SectionProps) {
+  return <SectionErrorBoundaryInner label={label}>{children}</SectionErrorBoundaryInner>
+}

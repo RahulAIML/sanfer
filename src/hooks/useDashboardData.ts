@@ -1,6 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins } from '../api/client'
+import { useSimulations, useActivities, useMembers, useAdmins } from '../api/queries'
 import {
   computeKPIs,
   computeTrend,
@@ -9,15 +8,17 @@ import {
   computeUserStats,
   computeScoreDistribution,
   buildOrgTree,
-  extractFeedback,
   filterTestUsers,
 } from '../lib/analytics'
+// extractFeedback intentionally removed from eager computation — O(5N), zero consumers.
+// Call it directly and on-demand (drilldown, export) where actually needed.
 
 export function useDashboardData() {
-  const activitiesQ = useQuery({ queryKey: ['activities'], queryFn: fetchActivities })
-  const simsQ = useQuery({ queryKey: ['simulations'], queryFn: fetchSimulations })
-  const membersQ = useQuery({ queryKey: ['members'], queryFn: fetchMembers })
-  const adminsQ = useQuery({ queryKey: ['admins'], queryFn: fetchAdmins })
+  // Use hooks from queries.ts so stale times are configured in one place
+  const activitiesQ = useActivities()
+  const simsQ       = useSimulations()
+  const membersQ    = useMembers()
+  const adminsQ     = useAdmins()
 
   // Fine-grained loading flags so pages can render as soon as their data arrives
   const simsLoading = simsQ.isLoading
@@ -27,10 +28,12 @@ export function useDashboardData() {
   const isLoading = simsLoading || activitiesLoading || orgLoading
   const isError = activitiesQ.isError || simsQ.isError || membersQ.isError || adminsQ.isError
 
-  const activities = useMemo(() => activitiesQ.data?.data ?? [], [activitiesQ.data])
-  const sims = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
-  const members = useMemo(() => membersQ.data?.data ?? [], [membersQ.data])
-  const admins = useMemo(() => adminsQ.data?.data ?? [], [adminsQ.data])
+  // useActivities / useMembers / useAdmins use `select` transforms in queries.ts,
+  // so .data is already the array — no .data?.data needed.
+  const activities = useMemo(() => activitiesQ.data ?? [], [activitiesQ.data])
+  const sims       = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
+  const members    = useMemo(() => membersQ.data ?? [], [membersQ.data])
+  const admins     = useMemo(() => adminsQ.data ?? [], [adminsQ.data])
 
   // Analytics — each memoized independently so only the affected slice reruns
   // kpis computes as soon as sims+activities arrive; org counts (members/admins)
@@ -64,11 +67,6 @@ export function useDashboardData() {
     () => (orgLoading || isError ? null : buildOrgTree(admins, members)),
     [orgLoading, isError, admins, members],
   )
-  const feedback = useMemo(
-    () => (simsLoading || isError ? null : extractFeedback(sims)),
-    [simsLoading, isError, sims],
-  )
-
   const refetch = useCallback(() => {
     activitiesQ.refetch()
     simsQ.refetch()
@@ -94,7 +92,6 @@ export function useDashboardData() {
     userStats,
     scoreDist,
     orgTree,
-    feedback,
     refetch,
   }
 }

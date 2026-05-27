@@ -1,19 +1,18 @@
 import type { Activity, Administrator, LineTag, Member, Simulation } from '../api/types'
+import { SANFER_CONFIG } from '../clients/sanfer/config'
+
 // re-export so pages can import directly
 export type { Simulation }
 
 export const PASS_THRESHOLD = 60
 
+/** Maximum data points returned from computeTrend — prevents chart overload */
+const MAX_TREND_POINTS = 60
+
 // ─────────────────────────────────────────────
-// Test / demo user blocklist
+// Test / demo user blocklist (config-driven)
 // ─────────────────────────────────────────────
-const TEST_USER_BLOCKLIST = new Set([
-  'Tester Sanfer Demo',
-  'Tester Sanfer Grupal',
-  'Tester Sanfer Completo',
-  'Piloto 1', 'Piloto 2', 'Piloto 8',
-  'Sanfer01', 'Demo User',
-])
+const TEST_USER_BLOCKLIST = new Set(SANFER_CONFIG.testUserBlocklist)
 
 /** Remove simulations belonging to known test/demo accounts */
 export function filterTestUsers(sims: Simulation[]): Simulation[] {
@@ -23,6 +22,7 @@ export function filterTestUsers(sims: Simulation[]): Simulation[] {
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
+
 function avg(nums: number[]): number {
   if (!nums.length) return 0
   return nums.reduce((a, b) => a + b, 0) / nums.length
@@ -38,12 +38,7 @@ function isApplicable(v: unknown): v is number {
   return typeof v === 'number'
 }
 
-const INTERACTION_KEYS = ['Puntos_1','Puntos_2','Puntos_3','Puntos_4','Puntos_5'] as const
-
-/** Count of applicable (numeric) interactions for one simulation */
-function countApplicable(s: Simulation): number {
-  return INTERACTION_KEYS.filter((k) => isApplicable(s[k])).length
-}
+const INTERACTION_KEYS = ['Puntos_1', 'Puntos_2', 'Puntos_3', 'Puntos_4', 'Puntos_5'] as const
 
 // Calificacion is a 0-100 percentage; guard against null/non-numeric API values
 function avgScore(sims: Simulation[]): number {
@@ -52,9 +47,24 @@ function avgScore(sims: Simulation[]): number {
   return Math.round(valid.reduce((a, b) => a + b, 0) / valid.length)
 }
 
+/**
+ * Downsamples an array to at most `maxPoints` entries by evenly skipping elements.
+ * Preserves the first and last points for accurate axis bounds.
+ */
+function downsample<T>(arr: T[], maxPoints: number): T[] {
+  if (arr.length <= maxPoints) return arr
+  const step = Math.ceil(arr.length / maxPoints)
+  const result: T[] = []
+  for (let i = 0; i < arr.length; i++) {
+    if (i % step === 0 || i === arr.length - 1) result.push(arr[i])
+  }
+  return result
+}
+
 // ─────────────────────────────────────────────
 // Core KPIs
 // ─────────────────────────────────────────────
+
 export interface DashboardKPIs {
   totalSimulations: number
   averageScore: number
@@ -77,20 +87,30 @@ export function computeKPIs(
   admins: Administrator[],
 ): DashboardKPIs {
   const passCount = sims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
-  const advisors = new Set(sims.map((s) => s.Usuario_Nombre).filter(Boolean))
-  const scores = sims.map((s) => s.Calificacion)
+  const advisors  = new Set(sims.map((s) => s.Usuario_Nombre).filter(Boolean))
+
+  // Use Math.max/min with reduce to avoid stack overflow on large arrays
+  let bestScore  = 0
+  let worstScore = 0
+  if (sims.length) {
+    bestScore  = sims.reduce((m, s) => Math.max(m, s.Calificacion), -Infinity)
+    worstScore = sims.reduce((m, s) => Math.min(m, s.Calificacion),  Infinity)
+    if (!Number.isFinite(bestScore))  bestScore  = 0
+    if (!Number.isFinite(worstScore)) worstScore = 0
+  }
 
   return {
     totalSimulations: sims.length,
-    averageScore: avgScore(sims),
-    passRate: pct(passCount, sims.length),
-    activeAdvisors: advisors.size,
-    totalActivities: activities.length,
-    totalMembers: members.length,
-    totalAdmins: admins.filter((a) => a.rpa_profile_type === 'admin').length,
+    averageScore:     avgScore(sims),
+    passRate:         pct(passCount, sims.length),
+    activeAdvisors:   advisors.size,
+    totalActivities:  activities.length,
+    // Prefer the count field from the API response when available
+    totalMembers:     members.length,
+    totalAdmins:      admins.filter((a) => a.rpa_profile_type === 'admin').length,
     totalSupervisors: admins.filter((a) => a.rpa_profile_type === 'supervisor').length,
-    bestScore: scores.length ? Math.max(...scores) : 0,
-    worstScore: scores.length ? Math.min(...scores) : 0,
+    bestScore,
+    worstScore,
     passCount,
     failCount: sims.length - passCount,
   }
@@ -99,6 +119,7 @@ export function computeKPIs(
 // ─────────────────────────────────────────────
 // Score Distribution
 // ─────────────────────────────────────────────
+
 export interface ScoreBucket {
   label: string
   count: number
@@ -108,10 +129,10 @@ export interface ScoreBucket {
 
 export function computeScoreDistribution(sims: Simulation[]): ScoreBucket[] {
   const buckets: ScoreBucket[] = [
-    { label: '0–20', min: 0, max: 20, count: 0 },
-    { label: '21–40', min: 21, max: 40, count: 0 },
-    { label: '41–60', min: 41, max: 60, count: 0 },
-    { label: '61–80', min: 61, max: 80, count: 0 },
+    { label: '0–20',   min: 0,  max: 20,  count: 0 },
+    { label: '21–40',  min: 21, max: 40,  count: 0 },
+    { label: '41–60',  min: 41, max: 60,  count: 0 },
+    { label: '61–80',  min: 61, max: 80,  count: 0 },
     { label: '81–100', min: 81, max: 100, count: 0 },
   ]
   sims.forEach((s) => {
@@ -122,8 +143,9 @@ export function computeScoreDistribution(sims: Simulation[]): ScoreBucket[] {
 }
 
 // ─────────────────────────────────────────────
-// Trend over time
+// Trend over time (downsampled to MAX_TREND_POINTS)
 // ─────────────────────────────────────────────
+
 export interface TrendPoint {
   date: string
   avgScore: number
@@ -138,22 +160,27 @@ export function computeTrend(sims: Simulation[]): TrendPoint[] {
     if (!byDate[date]) byDate[date] = []
     byDate[date].push(s)
   })
-  return Object.entries(byDate)
+
+  const sorted = Object.entries(byDate)
     .map(([date, group]) => ({
       date,
       avgScore: Math.round(avg(group.map((s) => s.Calificacion))),
-      count: group.length,
+      count:    group.length,
       passRate: pct(
         group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length,
         group.length,
       ),
     }))
     .sort((a, b) => a.date.localeCompare(b.date))
+
+  // Cap at MAX_TREND_POINTS so Recharts never renders more than 60 data points
+  return downsample(sorted, MAX_TREND_POINTS)
 }
 
 // ─────────────────────────────────────────────
-// Round-level averages (Puntos_1..6)
+// Round-level averages (Puntos_1..5)
 // ─────────────────────────────────────────────
+
 export interface RoundStat {
   round: number
   label: string
@@ -164,23 +191,22 @@ export interface RoundStat {
 
 export function computeRoundStats(sims: Simulation[]): RoundStat[] {
   return [1, 2, 3, 4, 5].map((i) => {
-    const key = `Puntos_${i}` as keyof Simulation
-    const values = sims
-      .map((s) => s[key])
-      .filter(isApplicable)            // excludes "No aplica" and null
+    const key    = `Puntos_${i}` as keyof Simulation
+    const values = sims.map((s) => s[key]).filter(isApplicable)
     return {
-      round: i,
-      label: `I${i}`,                  // I = Interaction
-      avg: values.length ? Math.round(avg(values) * 100) / 100 : 0,
+      round:    i,
+      label:    `I${i}`,
+      avg:      values.length ? Math.round(avg(values) * 100) / 100 : 0,
       passRate: values.length ? pct(values.filter((v) => v > 0).length, values.length) : 0,
-      count: values.length,
+      count:    values.length,
     }
-  }).filter((r) => r.count > 0)       // only include interactions that have real data
+  }).filter((r) => r.count > 0)
 }
 
 // ─────────────────────────────────────────────
 // Activity statistics
 // ─────────────────────────────────────────────
+
 export interface ActivityStat {
   id: number
   name: string
@@ -198,21 +224,23 @@ export function computeActivityStats(
 ): ActivityStat[] {
   const actMap = new Map(activities.map((a) => [a.ID_Caso_de_Uso, a]))
   const byActivity: Record<number, Simulation[]> = {}
+
   sims.forEach((s) => {
     if (!byActivity[s.ID_Caso_de_Uso]) byActivity[s.ID_Caso_de_Uso] = []
     byActivity[s.ID_Caso_de_Uso].push(s)
   })
+
   return Object.entries(byActivity).map(([id, group]) => {
-    const numId = Number(id)
-    const act = actMap.get(numId)
+    const numId     = Number(id)
+    const act       = actMap.get(numId)
     const passCount = group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
     return {
-      id: numId,
-      name: act?.Caso_de_Uso ?? `Activity ${id}`,
+      id:           numId,
+      name:         act?.Caso_de_Uso     ?? `Activity ${id}`,
       activityType: act?.Actividad_Nombre ?? 'unknown',
-      count: group.length,
-      avgScore: avgScore(group),
-      passRate: pct(passCount, group.length),
+      count:        group.length,
+      avgScore:     avgScore(group),
+      passRate:     pct(passCount, group.length),
       passCount,
       failCount: group.length - passCount,
     }
@@ -222,6 +250,7 @@ export function computeActivityStats(
 // ─────────────────────────────────────────────
 // User (advisor) statistics — leaderboard
 // ─────────────────────────────────────────────
+
 export interface UserStat {
   name: string
   userId: string | null
@@ -239,17 +268,19 @@ export function computeUserStats(sims: Simulation[]): UserStat[] {
     if (!byUser[key]) byUser[key] = []
     byUser[key].push(s)
   })
+
   return Object.entries(byUser)
     .map(([name, group]) => {
       const passCount = group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
-      const scores = group.map((s) => s.Calificacion)
+      // Use reduce to avoid stack overflow on large groups
+      const bestScore = group.reduce((m, s) => Math.max(m, s.Calificacion), 0)
       return {
         name,
-        userId: group[0].Usuario,
-        count: group.length,
-        avgScore: avgScore(group),
-        passRate: pct(passCount, group.length),
-        bestScore: Math.max(...scores),
+        userId:    group[0].Usuario,
+        count:     group.length,
+        avgScore:  avgScore(group),
+        passRate:  pct(passCount, group.length),
+        bestScore,
         passCount,
       }
     })
@@ -259,6 +290,7 @@ export function computeUserStats(sims: Simulation[]): UserStat[] {
 // ─────────────────────────────────────────────
 // Organization hierarchy
 // ─────────────────────────────────────────────
+
 export interface OrgNode {
   id: number
   name: string
@@ -279,12 +311,12 @@ export function buildOrgTree(admins: Administrator[], members: Member[]): OrgNod
     admins.map((a) => [
       a.rpa_id,
       {
-        id: a.rpa_id,
-        name: a.rpa_full_name,
-        email: a.rpa_email,
-        type: a.rpa_profile_type,
-        parentId: a.rpa_parent,
-        children: [],
+        id:          a.rpa_id,
+        name:        a.rpa_full_name,
+        email:       a.rpa_email,
+        type:        a.rpa_profile_type,
+        parentId:    a.rpa_parent,
+        children:    [],
         memberCount: adminMemberCount.get(a.rpa_id) ?? 0,
       },
     ]),
@@ -303,8 +335,9 @@ export function buildOrgTree(admins: Administrator[], members: Member[]): OrgNod
 }
 
 // ─────────────────────────────────────────────
-// Coaching feedback analysis
+// Coaching feedback analysis — lazy, on-demand only
 // ─────────────────────────────────────────────
+
 export interface FeedbackEntry {
   simId: number
   userName: string | null
@@ -315,18 +348,23 @@ export interface FeedbackEntry {
   points: number
 }
 
+/**
+ * Extracts per-interaction feedback from simulations.
+ * NOT called eagerly — must be explicitly invoked (drilldown, export, etc.).
+ * O(5N) — expensive on large datasets.
+ */
 export function extractFeedback(sims: Simulation[]): FeedbackEntry[] {
   const entries: FeedbackEntry[] = []
   sims.forEach((s) => {
     for (let i = 1; i <= 5; i++) {
-      const puntos = s[`Puntos_${i}` as keyof Simulation]
-      if (!isApplicable(puntos)) continue   // skip "No aplica" and null
+      const puntos   = s[`Puntos_${i}` as keyof Simulation]
+      if (!isApplicable(puntos)) continue
       const feedback = s[`Retroalimentacion_${i}` as keyof Simulation] as string | null
       if (!feedback) continue
       entries.push({
-        simId: s.ID_Sim,
+        simId:    s.ID_Sim,
         userName: s.Usuario_Nombre,
-        round: i,
+        round:    i,
         question: (s[`Pregunta_${i}` as keyof Simulation] as string | null) ?? '',
         response: (s[`Respuesta_${i}` as keyof Simulation] as string | null) ?? '',
         feedback,
@@ -340,6 +378,7 @@ export function extractFeedback(sims: Simulation[]): FeedbackEntry[] {
 // ─────────────────────────────────────────────
 // Line (Dim_Line / tag1) statistics — Sanfer-specific
 // ─────────────────────────────────────────────
+
 export interface LineStat {
   id: number
   name: string
@@ -356,21 +395,18 @@ export function computeLineStats(
   members: Member[],
   sims: Simulation[],
 ): LineStat[] {
-  // Group members by their line id (mb_idTag1 === 0 means unassigned)
   const membersByLine = new Map<number, Member[]>()
   members.forEach((m) => {
-    if (!m.mb_idTag1) return  // skip unassigned (0 or falsy)
+    if (!m.mb_idTag1) return
     if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, [])
     membersByLine.get(m.mb_idTag1)!.push(m)
   })
 
-  // Build user → lineId lookup (mb_user email → line.id)
   const userToLine = new Map<string, number>()
   members.forEach((m) => {
     if (m.mb_idTag1 && m.mb_user) userToLine.set(m.mb_user, m.mb_idTag1)
   })
 
-  // Group sims by line
   const simsByLine = new Map<number, Simulation[]>()
   sims.forEach((s) => {
     if (!s.Usuario) return
@@ -382,16 +418,16 @@ export function computeLineStats(
 
   return lines.map((line) => {
     const lineMembers = membersByLine.get(line.id) ?? []
-    const lineSims = simsByLine.get(line.id) ?? []
-    const passCount = lineSims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
-    const scores = lineSims.map((s) => Number(s.Calificacion)).filter((n) => Number.isFinite(n))
+    const lineSims    = simsByLine.get(line.id)    ?? []
+    const passCount   = lineSims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
+    const scores      = lineSims.map((s) => Number(s.Calificacion)).filter((n) => Number.isFinite(n))
     return {
-      id: line.id,
-      name: line.name,
+      id:          line.id,
+      name:        line.name,
       memberCount: lineMembers.length,
-      simCount: lineSims.length,
-      avgScore: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
-      passRate: lineSims.length ? Math.round((passCount / lineSims.length) * 100) : 0,
+      simCount:    lineSims.length,
+      avgScore:    scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+      passRate:    lineSims.length ? Math.round((passCount / lineSims.length) * 100) : 0,
       passCount,
       activeUsers: new Set(lineSims.map((s) => s.Usuario_Nombre).filter(Boolean)).size,
     }
@@ -401,6 +437,7 @@ export function computeLineStats(
 // ─────────────────────────────────────────────
 // AI Context String (for Gemini)
 // ─────────────────────────────────────────────
+
 export function buildAIContext(
   kpis: DashboardKPIs,
   sims: Simulation[],
@@ -409,13 +446,10 @@ export function buildAIContext(
   userStats: UserStat[],
 ): string {
   const topUsers = userStats.slice(0, 5).map((u) => `${u.name} (${u.avgScore}%)`).join(', ')
-  const actList = actStats
-    .map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`)
-    .join('; ')
-  const recent = sims
-    .slice(-5)
-    .map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% (${s.Diagnostico_Final})`)
-    .join(', ')
+  const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
+  // Pass only last 5 sims — avoid serializing the full dataset into the AI context
+  const recent   = sims.slice(-5).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% (${s.Diagnostico_Final})`).join(', ')
+  const actNames = activities.slice(0, 20).map((a) => a.Caso_de_Uso).join(', ')
 
   return `
 SANFER SALES TRAINING INTELLIGENCE PLATFORM — LIVE DASHBOARD DATA
@@ -430,7 +464,7 @@ Total Supervisors: ${kpis.totalSupervisors}
 Best Score: ${kpis.bestScore}%
 Lowest Score: ${kpis.worstScore}%
 
-Activities:
+Activities (top 20):
 ${actList}
 
 Top Performers:
@@ -439,6 +473,6 @@ ${topUsers}
 Recent Simulations (last 5):
 ${recent}
 
-Activities Available: ${activities.map((a) => a.Caso_de_Uso).join(', ')}
+Activities Available (sample): ${actNames}
   `.trim()
 }

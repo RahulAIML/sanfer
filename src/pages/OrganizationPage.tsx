@@ -1,13 +1,18 @@
+import { useState } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { Building2, Users, Mail, Shield, UserCheck } from 'lucide-react'
+import { Building2, Users, Mail, Shield, UserCheck, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { OrgNode } from '../lib/analytics'
+
+const PAGE_SIZE = 50
 
 export default function OrganizationPage() {
   const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
   const { orgLoading, isError, orgTree, members, admins, refetch } = useDashboardData()
+
+  const [page, setPage] = useState(0)
 
   if (orgLoading) {
     return (
@@ -52,34 +57,68 @@ export default function OrganizationPage() {
       </div>
 
       {/* Members table */}
-      <div className="card overflow-hidden">
-        <h3 className="text-sm font-semibold text-slate-200 px-4 pt-4 mb-2">{t('kpi_total_members')}</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-line/40">
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_advisor')}</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_email')}</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_type')}</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_members')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.slice(0, 50).map((m) => {
-                const admin = admins.find((a) => a.rpa_id === m.mb_admin)
-                return (
-                  <tr key={m.mb_id} className="border-b border-line/20 hover:bg-white/[0.02] transition-colors">
-                    <td className="px-4 py-3 text-slate-200 font-medium">{m.mb_fullname}</td>
-                    <td className="px-4 py-3 max-w-[160px]"><span className="text-slate-400 text-xs block truncate">{m.mb_email}</span></td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{m.mb_designation || t('member')}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{admin?.rpa_full_name ?? '-'}</td>
+      {(() => {
+        const totalPages  = Math.max(1, Math.ceil(members.length / PAGE_SIZE))
+        const displayPage = Math.min(page, totalPages - 1)
+        const paginated   = members.slice(displayPage * PAGE_SIZE, (displayPage + 1) * PAGE_SIZE)
+        const es          = language === 'es'
+        return (
+          <div className="card overflow-hidden">
+            <h3 className="text-sm font-semibold text-slate-200 px-4 pt-4 mb-2">{t('kpi_total_members')}</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-line/40">
+                    <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_advisor')}</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_email')}</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_type')}</th>
+                    <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_members')}</th>
                   </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                </thead>
+                <tbody>
+                  {paginated.map((m) => {
+                    const admin = admins.find((a) => a.rpa_id === m.mb_admin)
+                    return (
+                      <tr key={m.mb_id} className="border-b border-line/20 hover:bg-white/[0.02] transition-colors">
+                        <td className="px-4 py-3 text-slate-200 font-medium">{m.mb_fullname}</td>
+                        <td className="px-4 py-3 max-w-[160px]"><span className="text-slate-400 text-xs block truncate">{m.mb_email}</span></td>
+                        <td className="px-4 py-3 text-slate-400 text-xs">{m.mb_designation || t('member')}</td>
+                        <td className="px-4 py-3 text-slate-400 text-xs">{admin?.rpa_full_name ?? '-'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between text-xs text-slate-500 px-4 py-3 border-t border-line/20">
+                <span>
+                  {es
+                    ? `Mostrando ${displayPage * PAGE_SIZE + 1}–${Math.min((displayPage + 1) * PAGE_SIZE, members.length)} de ${members.length}`
+                    : `Showing ${displayPage * PAGE_SIZE + 1}–${Math.min((displayPage + 1) * PAGE_SIZE, members.length)} of ${members.length}`}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={displayPage === 0}
+                    className="p-1.5 rounded-lg border border-line/50 disabled:opacity-30 hover:border-line transition-colors"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </button>
+                  <span className="px-3 tabular-nums">{displayPage + 1} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                    disabled={displayPage >= totalPages - 1}
+                    className="p-1.5 rounded-lg border border-line/50 disabled:opacity-30 hover:border-line transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
