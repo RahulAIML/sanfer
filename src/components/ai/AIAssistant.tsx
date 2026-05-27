@@ -484,24 +484,6 @@ export function AIAssistant() {
 
   return (
     <>
-      {/* ── Floating bubble (panel closed) ── */}
-      <AnimatePresence>
-        {!aiOpen && (
-          <motion.button
-            key="ai-bubble"
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.6 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            onClick={toggleAI}
-            className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-accent shadow-elevated flex items-center justify-center hover:bg-blue-400 transition-colors"
-            title={t('nav_ai_assistant')}
-          >
-            <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* ── Mobile backdrop (panel open) ── */}
       <AnimatePresence>
         {aiOpen && (

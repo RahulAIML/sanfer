@@ -188,6 +188,36 @@ export default function ConversationalPage() {
   const { simsLoading, activitiesLoading, isError, roundStats, actStats, refetch } = useDashboardData()
   const isLoading = simsLoading || activitiesLoading
 
+  // ── ALL hooks BEFORE any conditional return (Rules of Hooks) ─────────────────
+  const stats    = roundStats ?? []
+  const simStats = useMemo(
+    () => (actStats ?? []).slice().sort((a, b) => b.passRate - a.passRate),
+    [actStats],
+  )
+
+  const avgKey  = es ? 'Puntaje Prom.'   : 'Avg Score'
+  const passKey = es ? 'Tasa Aprobación' : 'Pass Rate'
+
+  const radarData = useMemo(
+    () => stats.map((r) => ({
+      round: `${t('round')} ${r.round}`,
+      [avgKey]:  r.avg,
+      [passKey]: r.passRate,
+    })),
+    // t is stable across renders of same language — string key lookup is pure
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stats, avgKey, passKey],
+  )
+
+  // Summary stats from simulators
+  const totalSims   = simStats.reduce((s, a) => s + a.count, 0)
+  const overallAvg  = simStats.length && totalSims
+    ? Math.round(simStats.reduce((s, a) => s + a.avgScore * a.count, 0) / totalSims)
+    : 0
+  const strongCount = simStats.filter((a) => getTier(a) === 'strong').length
+  const attnCount   = simStats.filter((a) => getTier(a) === 'needs-attention').length
+  // ── End of hook declarations ─────────────────────────────────────────────────
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -214,12 +244,6 @@ export default function ConversationalPage() {
     )
   }
 
-  const stats    = roundStats ?? []
-  const simStats = useMemo(
-    () => (actStats ?? []).slice().sort((a, b) => b.passRate - a.passRate),
-    [actStats],
-  )
-
   if (!stats.length && !simStats.length) {
     return (
       <div className="space-y-6">
@@ -235,25 +259,10 @@ export default function ConversationalPage() {
     )
   }
 
-  const avgKey  = es ? 'Puntaje Prom.'   : 'Avg Score'
-  const passKey = es ? 'Tasa Aprobación' : 'Pass Rate'
-
-  const radarData = useMemo(() => stats.map((r) => ({
-    round: `${t('round')} ${r.round}`,
-    [avgKey]:  r.avg,
-    [passKey]: r.passRate,
-  })), [stats, avgKey, passKey, t])
-
-  // Summary stats from simulators
-  const totalSims   = simStats.reduce((s, a) => s + a.count, 0)
-  const overallAvg  = simStats.length
-    ? Math.round(simStats.reduce((s, a) => s + a.avgScore * a.count, 0) / totalSims)
-    : 0
-  const overallPass = simStats.length
+  // overallPass only used in the JSX below — derived here (no hook, plain var)
+  const overallPass = simStats.length && totalSims
     ? Math.round(simStats.reduce((s, a) => s + a.passCount, 0) / totalSims * 100)
     : 0
-  const strongCount = simStats.filter((a) => getTier(a) === 'strong').length
-  const attnCount   = simStats.filter((a) => getTier(a) === 'needs-attention').length
 
   return (
     <div className="space-y-6">

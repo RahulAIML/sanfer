@@ -2,6 +2,7 @@ import { useMemo, useCallback } from 'react'
 import { useSimulations, useActivities, useMembers, useAdmins } from '../api/queries'
 import { useAppStore } from '../store'
 import {
+  computeQuickKPIs,
   computeKPIs,
   computeTrend,
   computeRoundStats,
@@ -50,6 +51,14 @@ export function useDashboardData() {
       return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
     })
   }, [simsQ.data, dateFrom, dateTo])
+
+  // ── Quick KPIs — available the instant sims arrive ───────────────────────────
+  // Derived from sims only (no org data, no activities needed).
+  // Powers the 4 primary KPI cards on OverviewPage without waiting for all queries.
+  const quickKpis = useMemo(
+    () => (!simsLoading && !simsQ.isError && sims.length >= 0 ? computeQuickKPIs(sims) : null),
+    [simsLoading, simsQ.isError, sims],
+  )
 
   // Analytics — each memoized independently so only the affected slice reruns
   // kpis computes as soon as sims+activities arrive; org counts (members/admins)
@@ -101,6 +110,7 @@ export function useDashboardData() {
     sims,
     members,
     admins,
+    quickKpis,   // ← new: sims-only, available before org data arrives
     kpis,
     trend,
     roundStats,

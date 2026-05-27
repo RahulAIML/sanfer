@@ -67,6 +67,47 @@ function downsample<T>(arr: T[], maxPoints: number): T[] {
 }
 
 // ─────────────────────────────────────────────
+// Quick KPIs — sims only, no org data needed
+// Available the instant the simulations query resolves.
+// Powers the 4 main OverviewPage KPI cards before org data arrives.
+// ─────────────────────────────────────────────
+
+export interface QuickKPIs {
+  totalSimulations: number
+  averageScore:     number
+  passRate:         number
+  activeAdvisors:   number
+  passCount:        number
+  failCount:        number
+  bestScore:        number
+  worstScore:       number
+}
+
+/** O(N) — derives the 4 primary KPIs from simulations only. No org data required. */
+export function computeQuickKPIs(sims: Simulation[]): QuickKPIs {
+  const passCount = sims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
+  const advisors  = new Set(sims.map((s) => s.Usuario_Nombre).filter(Boolean))
+  let bestScore  = 0
+  let worstScore = 0
+  if (sims.length) {
+    bestScore  = sims.reduce((m, s) => Math.max(m, s.Calificacion), -Infinity)
+    worstScore = sims.reduce((m, s) => Math.min(m, s.Calificacion),  Infinity)
+    if (!Number.isFinite(bestScore))  bestScore  = 0
+    if (!Number.isFinite(worstScore)) worstScore = 0
+  }
+  return {
+    totalSimulations: sims.length,
+    averageScore:     avgScore(sims),
+    passRate:         pct(passCount, sims.length),
+    activeAdvisors:   advisors.size,
+    passCount,
+    failCount:  sims.length - passCount,
+    bestScore,
+    worstScore,
+  }
+}
+
+// ─────────────────────────────────────────────
 // Core KPIs
 // ─────────────────────────────────────────────
 

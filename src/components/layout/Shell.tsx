@@ -1,15 +1,31 @@
 import { lazy, memo, Suspense, useEffect } from 'react'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { AiBubble } from '../ai/AiBubble'
 import { useAppStore } from '../../store'
 
-const AIAssistant = lazy(() =>
+/**
+ * AIAssistant panel — lazy-loaded AND conditionally mounted.
+ *
+ * Why both?
+ * - `lazy()` defers the module download until first use.
+ * - The `{aiOpen && …}` guard ensures React never mounts the component at all
+ *   until the user explicitly opens the panel, preventing:
+ *     • useDashboardData subscription on startup
+ *     • Framer Motion spring physics initialization
+ *     • 5 useState / 4 useRef allocations
+ *     • paste / keyboard event listener registration
+ *
+ * AiBubble is always in the tree — it is tiny (no data deps, ~200 B gzipped).
+ */
+const AIAssistantPanel = lazy(() =>
   import('../ai/AIAssistant').then((m) => ({ default: m.AIAssistant })),
 )
 
 export const Shell = memo(function Shell({ children }: { children: React.ReactNode }) {
-  const theme = useAppStore((s) => s.theme)
-  const mobileMenuOpen = useAppStore((s) => s.mobileMenuOpen)
+  const theme           = useAppStore((s) => s.theme)
+  const aiOpen          = useAppStore((s) => s.aiOpen)
+  const mobileMenuOpen  = useAppStore((s) => s.mobileMenuOpen)
   const setMobileMenuOpen = useAppStore((s) => s.setMobileMenuOpen)
 
   useEffect(() => {
@@ -36,9 +52,16 @@ export const Shell = memo(function Shell({ children }: { children: React.ReactNo
           </div>
         </main>
       </div>
-      <Suspense fallback={null}>
-        <AIAssistant />
-      </Suspense>
+
+      {/* Always-visible floating button — zero data deps, tiny bundle cost */}
+      <AiBubble />
+
+      {/* Full panel — mounts ONLY when user opens it, unmounts when closed */}
+      {aiOpen && (
+        <Suspense fallback={null}>
+          <AIAssistantPanel />
+        </Suspense>
+      )}
     </div>
   )
 })

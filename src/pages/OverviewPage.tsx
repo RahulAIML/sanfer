@@ -1,5 +1,6 @@
 import { memo, useState, useMemo, useRef, useEffect } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver'
 import {
   computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution,
 } from '../lib/analytics'
@@ -74,12 +75,20 @@ export default function OverviewPage() {
 
   const {
     simsLoading, activitiesLoading, isError,
+    quickKpis,          // ← available as soon as sims arrive (no org wait)
     kpis, trend, scoreDist, actStats, userStats,
     sims, activities, members, admins,
     refetch,
   } = useDashboardData()
-  // Page can render as soon as sims+activities arrive — org data populates later
-  const isLoading = simsLoading || activitiesLoading
+
+  // Skeleton only while sims are loading — activities are cached 24 h and arrive
+  // almost immediately on any warm session.
+  const isLoading = simsLoading
+
+  // Below-fold sections mount lazily when they scroll into view.
+  // rootMargin: start loading 120 px before entering the viewport.
+  const [belowFoldRef, belowFoldVisible] = useIntersectionObserver({ rootMargin: '120px' })
+  const [scoreSentRef, scoreVisible]     = useIntersectionObserver({ rootMargin: '80px' })
   // ── Date range — driven by global Zustand store ─────────────────────────────
   const dateFrom     = useAppStore((s) => s.dateFrom)
   const dateTo       = useAppStore((s) => s.dateTo)
@@ -139,8 +148,12 @@ export default function OverviewPage() {
   const userFilterActive = selectedUsers.size > 0
 
   // Re-derive all stats from user-filtered sims when user filter is active.
-  // When only a date filter is set, the hook already provides correct stats — no re-derive needed.
-  const activeKpis     = useMemo(() => userFilterActive ? computeKPIs(filteredSims, activities, members, admins) : kpis,                              [userFilterActive, filteredSims, activities, members, admins, kpis])
+  // When only a date filter is set, the hook already provides correct stats.
+  // Fall back to quickKpis (sims-only) while full kpis is still computing.
+  const activeKpis     = useMemo(
+    () => userFilterActive ? computeKPIs(filteredSims, activities, members, admins) : (kpis ?? quickKpis),
+    [userFilterActive, filteredSims, activities, members, admins, kpis, quickKpis],
+  )
   const activeActStats = useMemo(() => userFilterActive ? computeActivityStats(filteredSims, activities) : actStats, [userFilterActive, filteredSims, activities, actStats])
   const activeScoreDist= useMemo(() => userFilterActive ? computeScoreDistribution(filteredSims) : scoreDist,        [userFilterActive, filteredSims, scoreDist])
   const activeUserStats= useMemo(() => userFilterActive ? computeUserStats(filteredSims) : userStats,                [userFilterActive, filteredSims, userStats])
@@ -181,7 +194,8 @@ export default function OverviewPage() {
     )
   }
 
-  if (isError || (!anyFilterActive && !activeKpis)) {
+  // Only hard-error if sims failed (can't show anything meaningful)
+  if ((isError && !quickKpis) || (!anyFilterActive && !activeKpis && !simsLoading)) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <p className="text-slate-400">{t('error')}</p>
@@ -358,63 +372,90 @@ export default function OverviewPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('activity_breakdown')}</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topActivities} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" domain={[0, 'dataMax + 5']} hide />
-                <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + '…' : v} />
-                <Tooltip content={<ActivityTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
-                <Bar dataKey="count" fill={COLORS.accent} radius={[0, 4, 4, 0]} barSize={20} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+      {/* ── Below-fold row: Activity breakdown + Top performers ─────────────── */}
+      {/* Sentinel div — the IntersectionObserver watches this element.         */}
+      {/* Once it enters the viewport the charts mount; until then only a       */}
+      {/* lightweight placeholder occupies the layout so there is no CLS.       */}
+      <div ref={belowFoldRef}>
+        {belowFoldVisible ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Activity breakdown — needs actStats (sims + activities) */}
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('activity_breakdown')}</h3>
+              {activitiesLoading ? (
+                <div className="h-64 skeleton rounded-lg" />
+              ) : (
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topActivities} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                      <XAxis type="number" domain={[0, 'dataMax + 5']} hide />
+                      <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + '…' : v} />
+                      <Tooltip content={<ActivityTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
+                      <Bar dataKey="count" fill={COLORS.accent} radius={[0, 4, 4, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
 
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-200">{t('top_performers')}</h3>
-            <Link to="/leaderboard" className="text-xs text-accent hover:underline">{t('view_all')}</Link>
-          </div>
-          <div className="space-y-2">
-            {(activeUserStats ?? []).slice(0, 5).map((u, i) => (
-              <div key={u.name} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                  i === 0 ? 'bg-yellow-500/15 text-yellow-500' :
-                  i === 1 ? 'bg-slate-400/15 text-slate-300' :
-                  i === 2 ? 'bg-orange-500/15 text-orange-400' :
-                  'bg-surface text-slate-600'
-                }`}>{i + 1}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-200 truncate">{u.name}</p>
-                  <p className="text-[11px] text-slate-600">{u.count} {t('simulations_count')}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-100">{u.avgScore}%</p>
-                  <p className="text-[11px] text-slate-600">{u.passRate}% {t('pass')}</p>
-                </div>
+            {/* Top performers — needs userStats (sims only, fast) */}
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-200">{t('top_performers')}</h3>
+                <Link to="/leaderboard" className="text-xs text-accent hover:underline">{t('view_all')}</Link>
               </div>
-            ))}
+              <div className="space-y-2">
+                {(activeUserStats ?? []).slice(0, 5).map((u, i) => (
+                  <div key={u.name} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
+                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                      i === 0 ? 'bg-yellow-500/15 text-yellow-500' :
+                      i === 1 ? 'bg-slate-400/15 text-slate-300' :
+                      i === 2 ? 'bg-orange-500/15 text-orange-400' :
+                      'bg-surface text-slate-600'
+                    }`}>{i + 1}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-slate-200 truncate">{u.name}</p>
+                      <p className="text-[11px] text-slate-600">{u.count} {t('simulations_count')}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-slate-100">{u.avgScore}%</p>
+                      <p className="text-[11px] text-slate-600">{u.passRate}% {t('pass')}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Placeholder — preserves layout height to avoid CLS when charts mount */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="card p-5 h-80 skeleton rounded-xl" />
+            <div className="card p-5 h-80 skeleton rounded-xl" />
+          </div>
+        )}
       </div>
 
-      <div className="card p-5">
-        <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('score_distribution')}</h3>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={activeScoreDist ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip content={<ScoreDistTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
-              <Bar dataKey="count" fill={COLORS.accent} radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+      {/* ── Score distribution — furthest below fold ──────────────────────────── */}
+      <div ref={scoreSentRef}>
+        {scoreVisible ? (
+          <div className="card p-5">
+            <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('score_distribution')}</h3>
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={activeScoreDist ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" />
+                  <YAxis />
+                  <Tooltip content={<ScoreDistTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
+                  <Bar dataKey="count" fill={COLORS.accent} radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          <div className="card p-5 h-72 skeleton rounded-xl" />
+        )}
       </div>
     </div>
   )
