@@ -1,5 +1,4 @@
 import type { Activity, Administrator, LineTag, Member, Simulation } from '../api/types'
-import { SANFER_CONFIG } from '../clients/sanfer/config'
 
 // re-export so pages can import directly
 export type { Simulation }
@@ -10,9 +9,15 @@ export const PASS_THRESHOLD = 60
 const MAX_TREND_POINTS = 60
 
 // ─────────────────────────────────────────────
-// Test / demo user blocklist (config-driven)
+// Test / demo user blocklist
 // ─────────────────────────────────────────────
-const TEST_USER_BLOCKLIST = new Set(SANFER_CONFIG.testUserBlocklist)
+const TEST_USER_BLOCKLIST = new Set([
+  'Tester Sanfer Demo',
+  'Tester Sanfer Grupal',
+  'Tester Sanfer Completo',
+  'Piloto 1', 'Piloto 2', 'Piloto 8',
+  'Sanfer01', 'Demo User',
+])
 
 /** Remove simulations belonging to known test/demo accounts */
 export function filterTestUsers(sims: Simulation[]): Simulation[] {

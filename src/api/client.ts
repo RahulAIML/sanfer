@@ -6,16 +6,23 @@ import type {
   Simulation,
   SimulationsResponse,
 } from './types'
-import { SANFER_CONFIG } from '../clients/sanfer/config'
 import { inDateWindow, resolveEffectiveDates } from '../lib/dateUtils'
 
-const { apiBase: BASE, clientSlug: CLIENT, activityIds: SANFER_IDS } = SANFER_CONFIG
+const BASE   = '/sanfer/api'
+const CLIENT = 'rolplay_sanfer_robin'
 
-/** Pre-built querystring shared across endpoint calls */
+const SANFER_IDS = [
+  331, 343, 344, 345, 346, 347, 348, 358, 365, 367, 368, 371, 387, 390,
+  399, 402, 403, 405, 406, 408, 409, 410, 411, 412, 413, 419, 420, 421,
+  422, 423, 428, 430, 432, 433, 434, 435, 436, 439, 440, 445, 446, 447,
+  448, 449, 452, 453, 454, 455, 457, 459, 460, 461, 462, 464, 465, 466,
+  467, 468, 469, 481, 484, 488, 489, 490, 491, 492, 493,
+]
+
 const ID_QS = SANFER_IDS.map((id) => `id=${id}`).join('&')
 
 // ─────────────────────────────────────────────
-// Core fetch utility — AbortSignal + typed JSON
+// Core fetch utility
 // ─────────────────────────────────────────────
 
 async function fetchJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
@@ -33,16 +40,9 @@ export async function fetchActivities(signal?: AbortSignal): Promise<ActivitiesR
 }
 
 /**
- * Fetches the simulation fact table and immediately applies a client-side
- * date window (defaults to last 30 days).
- *
- * WHY client-side: The upstream API does not yet support date parameters.
- * Applying the filter here caps the working dataset at ~30 days of records,
- * reducing downstream analytics computation by 80–95% compared to loading
- * the full history.
- *
- * TODO: When the backend exposes `from`/`to` query params, pass them here and
- * remove the client-side filter — the data shape is identical.
+ * Fetches the simulation fact table and applies a 30-day client-side date filter.
+ * The upstream API has no date params — filtering here caps the working dataset
+ * to ~30 days, cutting payload processing by 80–95% vs loading full history.
  */
 export async function fetchSimulations(
   from?: string | null,
@@ -55,9 +55,7 @@ export async function fetchSimulations(
   )
   const all: Simulation[] = Array.isArray(raw) ? raw : (raw.data ?? [])
 
-  // Resolve effective date window — falls back to last 30 days when both are null
   const { from: effFrom, to: effTo } = resolveEffectiveDates(from ?? null, to ?? null)
-
   return all.filter((s) => {
     const date = s.Fecha_y_Hora?.split('T')[0]
     return date ? inDateWindow(date, effFrom, effTo) : false
