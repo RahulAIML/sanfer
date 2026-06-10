@@ -3,7 +3,7 @@ import type { Activity, Administrator, LineTag, Member, Simulation } from '../ap
 // re-export so pages can import directly
 export type { Simulation }
 
-export const PASS_THRESHOLD = 60
+export const PASS_THRESHOLD = 70
 
 /** Maximum data points returned from computeTrend — prevents chart overload */
 const MAX_TREND_POINTS = 60

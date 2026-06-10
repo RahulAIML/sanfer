@@ -10,7 +10,7 @@ import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import {
   BarChart3, PlayCircle, CheckCircle2, Users, Download,
-  Search, ChevronDown, X,
+  Search, ChevronDown, X, BookOpen, UserCheck,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -181,8 +181,8 @@ export default function OverviewPage() {
     return (
       <div className="space-y-6">
         <div className="h-8 w-48 skeleton rounded-lg" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card p-5 h-28 skeleton rounded-xl" />
           ))}
         </div>
@@ -223,23 +223,11 @@ export default function OverviewPage() {
           <p className="text-slate-500 text-sm mt-0.5">{t('page_overview_subtitle')}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <DateRangeFilter
-              from={from} to={to}
-              onFrom={(v) => setDateRange(v || null, dateTo)}
-              onTo={(v)   => setDateRange(dateFrom, v || null)}
-              label={es ? 'Período' : 'Period'}
-            />
-            {(dateFrom || dateTo) && (
-              <button
-                onClick={() => setDateRange(null, null)}
-                title={es ? 'Limpiar fechas' : 'Clear dates'}
-                className="p-1 rounded-md text-slate-500 hover:text-danger hover:bg-danger/10 transition-colors"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+          <DateRangeFilter
+            from={from} to={to}
+            onApply={(f, t) => setDateRange(f || null, t || null)}
+            label={es ? 'Período' : 'Period'}
+          />
           {/* User filter dropdown */}
           <div className="relative" ref={userDropdownRef}>
             <button
@@ -312,11 +300,13 @@ export default function OverviewPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={PlayCircle}   label={t('kpi_total_sims')}      value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent" />
-        <KpiCard icon={BarChart3}    label={t('kpi_avg_score')}       value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet" />
-        <KpiCard icon={CheckCircle2} label={t('kpi_pass_rate')}       value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass" />
-        <KpiCard icon={Users}        label={t('kpi_active_advisors')} value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KpiCard icon={PlayCircle}   label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
+        <KpiCard icon={BarChart3}    label={t('kpi_avg_score')}          value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet"  />
+        <KpiCard icon={CheckCircle2} label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
+        <KpiCard icon={Users}        label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
+        <KpiCard icon={BookOpen}     label={t('kpi_total_activities')}   value={kpis?.totalActivities ?? '…'}   sub={t('sub_active')}            color="accent"  />
+        <KpiCard icon={UserCheck}    label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}      sub={t('sub_registered')}        color="violet"  />
       </div>
 
       {/* Charts */}
