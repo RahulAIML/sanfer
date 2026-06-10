@@ -1,9 +1,12 @@
 // Serves dist/ as a static SPA and proxies /sanfer/* to the upstream API
 // with an in-memory cache so repeated requests within CACHE_TTL are instant.
+// All responses are gzipped when the client supports it — Node's fetch
+// transparently decompresses the upstream, so we must re-compress here.
 import { createServer } from 'http'
 import { readFile } from 'fs/promises'
 import { join, extname } from 'path'
 import { fileURLToPath } from 'url'
+import { gzipSync } from 'zlib'
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const DIST      = join(__dirname, 'dist')
@@ -11,7 +14,8 @@ const PORT      = parseInt(process.env.PORT ?? '4174')
 const UPSTREAM  = 'https://serv.aux-rolplay.com'
 const CACHE_TTL = 5 * 60 * 1000  // 5 minutes — matches React Query staleTime
 
-const cache = new Map()           // cacheKey → { body: string, ts: number }
+const apiCache    = new Map()  // key → { body: string, gz: Buffer, ts: number }
+const staticCache = new Map()  // filePath → { data: Buffer, gz: Buffer | null }
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -24,6 +28,22 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.woff':  'font/woff',
 }
+// Already-compressed formats — gzip would only waste CPU
+const SKIP_GZIP = new Set(['.png', '.ico', '.woff', '.woff2'])
+
+function acceptsGzip(req) {
+  return (req.headers['accept-encoding'] ?? '').includes('gzip')
+}
+
+function send(req, res, payload, gz) {
+  if (gz && acceptsGzip(req)) {
+    res.setHeader('Content-Encoding', 'gzip')
+    res.setHeader('Vary', 'Accept-Encoding')
+    res.end(gz)
+  } else {
+    res.end(payload)
+  }
+}
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? '/', `http://localhost`)
@@ -31,12 +51,12 @@ createServer(async (req, res) => {
   // ── API proxy with cache ───────────────────────────────────────────────────
   if (url.pathname.startsWith('/sanfer/')) {
     const key    = url.pathname + url.search
-    const cached = cache.get(key)
+    const cached = apiCache.get(key)
 
     if (cached && Date.now() - cached.ts < CACHE_TTL) {
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('X-Cache', 'HIT')
-      res.end(cached.body)
+      send(req, res, cached.body, cached.gz)
       return
     }
 
@@ -50,10 +70,11 @@ createServer(async (req, res) => {
         return
       }
       const body = await upstream.text()
-      cache.set(key, { body, ts: Date.now() })
+      const gz   = gzipSync(body)
+      apiCache.set(key, { body, gz, ts: Date.now() })
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('X-Cache', 'MISS')
-      res.end(body)
+      send(req, res, body, gz)
     } catch (err) {
       res.writeHead(502)
       res.end(String(err))
@@ -61,7 +82,7 @@ createServer(async (req, res) => {
     return
   }
 
-  // ── Static file serving ────────────────────────────────────────────────────
+  // ── Static file serving (memory-cached + pre-gzipped; dist is immutable) ───
   let filePath = join(DIST, url.pathname)
   const ext    = extname(filePath)
 
@@ -69,14 +90,20 @@ createServer(async (req, res) => {
   if (!ext) filePath = join(DIST, 'index.html')
 
   try {
-    const data = await readFile(filePath)
+    let entry = staticCache.get(filePath)
+    if (!entry) {
+      const data = await readFile(filePath)
+      const e    = extname(filePath)
+      entry = { data, gz: SKIP_GZIP.has(e) ? null : gzipSync(data) }
+      staticCache.set(filePath, entry)
+    }
     const mime = MIME[extname(filePath)] ?? 'application/octet-stream'
     res.setHeader('Content-Type', mime)
     // Hashed asset files are immutable — cache them for 1 year in the browser
     if ((ext === '.js' || ext === '.css') && url.pathname.startsWith('/assets/')) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
     }
-    res.end(data)
+    send(req, res, entry.data, entry.gz)
   } catch {
     // Fallback: any unknown route → SPA index.html
     try {

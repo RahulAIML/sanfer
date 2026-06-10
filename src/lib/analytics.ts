@@ -9,7 +9,12 @@ export const PASS_THRESHOLD = 70
 const MAX_TREND_POINTS = 60
 
 // ─────────────────────────────────────────────
-// Test / demo user blocklist
+// Test / demo user filtering
+// Validated against live demorp6 data (2026-06): test accounts use
+// rolplay.com / rolplay-sanfer.com / rolplaysanfer.com email domains and
+// "Tester*" / "RolPlay Pruebas*" names. Real users are @sanfer.com.mx,
+// @sanfer.com and @hormona.com.mx. The bridge also excludes rolplay
+// domains server-side — this is a client-side backstop.
 // ─────────────────────────────────────────────
 const TEST_USER_BLOCKLIST = new Set([
   'Tester Sanfer Demo',
@@ -19,9 +24,18 @@ const TEST_USER_BLOCKLIST = new Set([
   'Sanfer01', 'Demo User',
 ])
 
+function isTestUser(s: Simulation): boolean {
+  const name  = s.Usuario_Nombre ?? ''
+  const email = (s.Usuario ?? '').toLowerCase()
+  if (TEST_USER_BLOCKLIST.has(name)) return true
+  if (email.includes('rolplay')) return true
+  const nl = name.toLowerCase()
+  return nl.startsWith('tester') || nl.startsWith('rolplay pruebas')
+}
+
 /** Remove simulations belonging to known test/demo accounts */
 export function filterTestUsers(sims: Simulation[]): Simulation[] {
-  return sims.filter((s) => !TEST_USER_BLOCKLIST.has(s.Usuario_Nombre ?? ''))
+  return sims.filter((s) => !isTestUser(s))
 }
 
 // ─────────────────────────────────────────────

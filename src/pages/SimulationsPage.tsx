@@ -3,6 +3,7 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { useDebounce } from '../lib/useDebounce'
+import { PASS_THRESHOLD } from '../lib/analytics'
 import { Search, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '../lib/cn'
 
@@ -125,7 +126,7 @@ export default function SimulationsPage() {
                       </td>
                       <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{s.Fecha_y_Hora.slice(0, 10)}</td>
                       <td className="px-4 py-3">
-                        <span className={cn('font-semibold', s.Calificacion >= 60 ? 'text-success' : 'text-danger')}>
+                        <span className={cn('font-semibold', s.Calificacion >= PASS_THRESHOLD ? 'text-success' : 'text-danger')}>
                           {s.Calificacion}%
                         </span>
                       </td>
@@ -149,23 +150,28 @@ export default function SimulationsPage() {
                       <tr className="bg-surface/50">
                         <td colSpan={6} className="px-4 py-4">
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {[1, 2, 3, 4, 5].map((r) => {
+                            {[1, 2, 3, 4, 5, 6].map((r) => {
                               const q    = s[`Pregunta_${r}` as keyof typeof s] as string | null
                               const resp = s[`Respuesta_${r}` as keyof typeof s] as string | null
                               const pts  = s[`Puntos_${r}` as keyof typeof s] as number | string | null
                               const fb   = s[`Retroalimentacion_${r}` as keyof typeof s] as string | null
-                              if (!q || typeof pts !== 'number') return null
+                              if (!q) return null
+                              const scored = typeof pts === 'number'
                               return (
                                 <div key={r} className="card p-3 border border-line/40">
                                   <div className="flex items-center justify-between mb-1.5">
                                     <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-600">{t('round')} {r}</span>
-                                    <span className={cn('text-xs font-bold', pts > 0 ? 'text-success' : 'text-danger')}>
-                                      {pts} {t('points')}
-                                    </span>
+                                    {scored ? (
+                                      <span className={cn('text-xs font-bold', pts > 0 ? 'text-success' : 'text-danger')}>
+                                        {pts} {t('points')}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-bold text-slate-600">—</span>
+                                    )}
                                   </div>
                                   <p className="text-xs text-slate-400 mb-1 line-clamp-2">{q}</p>
                                   {resp && <p className="text-xs text-slate-500 line-clamp-2 mb-1">{resp}</p>}
-                                  {fb && <p className="text-[11px] text-slate-600 bg-surface rounded px-2 py-1">{fb}</p>}
+                                  {fb && fb !== 'No aplica' && <p className="text-[11px] text-slate-600 bg-surface rounded px-2 py-1">{fb}</p>}
                                 </div>
                               )
                             })}

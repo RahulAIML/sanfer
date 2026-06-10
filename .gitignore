@@ -7,3 +7,8 @@ gentera_source/
 *.webp
 *.txt
 
+
+# Server secrets — never commit
+sanfer_bridge_index.php
+shared_root_key
+*.xlsx

@@ -13,10 +13,8 @@ export interface Activity {
 }
 
 export interface ActivitiesResponse {
-  current_page: number
+  ok: boolean
   data: Activity[]
-  page_size: number
-  total_pages: number
   total_records: number
 }
 
@@ -34,22 +32,26 @@ export interface Simulation {
   Pregunta_3: string | null
   Pregunta_4: string | null
   Pregunta_5: string | null
-  Puntos_1: number | string | null
+  Pregunta_6: string | null     // round 6 = closing exchange, never scored
+  Puntos_1: number | string | null   // rounds 1–5 scored 0 or 1 (validated vs demorp6)
   Puntos_2: number | string | null
   Puntos_3: number | string | null
   Puntos_4: number | string | null
   Puntos_5: number | string | null
-  Puntos_Totales: number
+  Puntos_6: number | string | null   // always "No aplica" in practice
+  Puntos_Totales: number             // scoreData.sum — 0..5
   Respuesta_1: string | null
   Respuesta_2: string | null
   Respuesta_3: string | null
   Respuesta_4: string | null
   Respuesta_5: string | null
+  Respuesta_6: string | null
   Retroalimentacion_1: string | null
   Retroalimentacion_2: string | null
   Retroalimentacion_3: string | null
   Retroalimentacion_4: string | null
   Retroalimentacion_5: string | null
+  Retroalimentacion_6: string | null
   Usuario: string | null
   Usuario_Nombre: string | null
 }

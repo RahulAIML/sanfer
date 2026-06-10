@@ -20,7 +20,7 @@ const SANFER_IDS = [
   492, 493,
 ]
 
-const ID_QS = SANFER_IDS.map((id) => `id=${id}`).join('&')
+const IDS_CSV = SANFER_IDS.join(',')
 
 /** Extract YYYY-MM-DD from a date string regardless of T or space separator. */
 export function simDate(fecha: string | null | undefined): string {
@@ -41,8 +41,10 @@ async function fetchJSON<T>(url: string, signal?: AbortSignal): Promise<T> {
 // Endpoints
 // ─────────────────────────────────────────────
 
+// Activity names come from the bridge (demorp6 usecases table) — the single
+// source of truth for the 44 certification exercises.
 export async function fetchActivities(signal?: AbortSignal): Promise<ActivitiesResponse> {
-  return fetchJSON<ActivitiesResponse>(`${BASE}/dim_actividades?${ID_QS}`, signal)
+  return fetchJSON<ActivitiesResponse>(`${BRIDGE_BASE}/?action=activities.demorp6&ids=${IDS_CSV}`, signal)
 }
 
 export async function fetchSimulations(
@@ -51,7 +53,7 @@ export async function fetchSimulations(
   signal?: AbortSignal,
 ): Promise<Simulation[]> {
   const { from: effFrom, to: effTo } = resolveEffectiveDates(from ?? null, to ?? null)
-  const qs = `action=sim.demorp6&ids=${SANFER_IDS.join(',')}&date_from=${effFrom}&date_to=${effTo}`
+  const qs = `action=sim.demorp6&ids=${IDS_CSV}&date_from=${effFrom}&date_to=${effTo}`
   const resp = await fetchJSON<{ ok: boolean; data: Simulation[] }>(`${BRIDGE_BASE}/?${qs}`, signal)
   return (resp.data ?? []).filter((s) => {
     const date = simDate(s.Fecha_y_Hora)

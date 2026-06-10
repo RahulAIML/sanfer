@@ -13,11 +13,10 @@ import { buildAIContext } from '../../lib/analytics'
 // ─────────────────────────────────────────────
 
 /**
- * Use gemini-2.0-flash — stable release (Feb 2025), multimodal, 1M context.
- * Faster and more reliable than preview models.
+ * Use gemini-2.5-flash — stable GA release, multimodal, 1M context.
  * Override with VITE_GEMINI_MODEL env var if needed.
  */
-const GEMINI_MODEL   = import.meta.env.VITE_GEMINI_MODEL ?? 'gemini-2.0-flash'
+const GEMINI_MODEL   = import.meta.env.VITE_GEMINI_MODEL ?? 'gemini-2.5-flash'
 const REQUEST_TIMEOUT_MS = 45_000   // 45 s — Gemini can be slow on first token
 
 const MAX_IMAGE_DIM   = 1536         // px — Gemini vision sweet spot
