@@ -202,7 +202,7 @@ export interface TrendPoint {
 export function computeTrend(sims: Simulation[]): TrendPoint[] {
   const byDate: Record<string, Simulation[]> = {}
   sims.forEach((s) => {
-    const date = s.Fecha_y_Hora.split('T')[0]
+    const date = s.Fecha_y_Hora.substring(0, 10)
     if (!byDate[date]) byDate[date] = []
     byDate[date].push(s)
   })

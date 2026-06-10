@@ -47,7 +47,7 @@ export function useDashboardData() {
     const base = filterTestUsers(simsQ.data ?? [])
     if (!dateFrom && !dateTo) return base
     return base.filter((s) => {
-      const d = s.Fecha_y_Hora?.split('T')[0] ?? ''
+      const d = s.Fecha_y_Hora?.substring(0, 10) ?? ''
       return (!dateFrom || d >= dateFrom) && (!dateTo || d <= dateTo)
     })
   }, [simsQ.data, dateFrom, dateTo])
