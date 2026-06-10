@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Calendar, X } from 'lucide-react'
 import { cn } from '../../lib/cn'
+import { DATA_EPOCH } from '../../lib/dateUtils'
 
 interface Props {
   from: string
@@ -29,11 +30,12 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
   const isActive  = !!(from || to)
 
   function applyPreset(months: number | null) {
-    if (months === null) { onApply('', ''); return }
-    const today = new Date()
-    const past  = new Date(today)
+    const today = new Date().toISOString().slice(0, 10)
+    // "All" = everything since the first recorded session, not the default window
+    if (months === null) { onApply(DATA_EPOCH, today); return }
+    const past = new Date()
     past.setMonth(past.getMonth() - months)
-    onApply(past.toISOString().slice(0, 10), today.toISOString().slice(0, 10))
+    onApply(past.toISOString().slice(0, 10), today)
   }
 
   const inputCls = cn(

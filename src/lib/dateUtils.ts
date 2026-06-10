@@ -1,6 +1,9 @@
 /** Default rolling window for dashboard data */
 export const DEFAULT_WINDOW_DAYS = 30
 
+/** Earliest simulation data in demorp6 (first sanfer session: 2025-09-11) */
+export const DATA_EPOCH = '2025-09-01'
+
 /** Returns the last N-day range as ISO date strings (YYYY-MM-DD) */
 export function getDefaultDateRange(days = DEFAULT_WINDOW_DAYS): { from: string; to: string } {
   const now = new Date()

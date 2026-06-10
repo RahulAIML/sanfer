@@ -4,6 +4,7 @@ import type {
   LinesResponse,
   MembersResponse,
   Simulation,
+  SimReport,
 } from './types'
 import { inDateWindow, resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -59,6 +60,14 @@ export async function fetchSimulations(
     const date = simDate(s.Fecha_y_Hora)
     return date ? inDateWindow(date, effFrom, effTo) : false
   })
+}
+
+/** Full closing report for one session — fetched on demand from the drilldown */
+export async function fetchSimReport(simId: number, signal?: AbortSignal): Promise<SimReport> {
+  const resp = await fetchJSON<{ ok: boolean; data: SimReport }>(
+    `${BRIDGE_BASE}/?action=sim.report&sim_id=${simId}`, signal,
+  )
+  return resp.data
 }
 
 export async function fetchMembers(signal?: AbortSignal): Promise<MembersResponse> {

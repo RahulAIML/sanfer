@@ -2,7 +2,7 @@ import { memo, useState, useEffect } from 'react'
 import {
   LayoutDashboard, PlayCircle, MessageSquare, Brain, Trophy,
   Activity, Building2, ChevronLeft, ChevronRight,
-  GitBranch, FileText, Settings, X,
+  GitBranch, FileText, Settings, X, BadgeCheck,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAppStore } from '../../store'
@@ -24,6 +24,7 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
   {
     labelKey: 'nav_simulator',
     items: [
+      { to: '/certification', icon: BadgeCheck, key: 'nav_certification' },
       { to: '/simulations', icon: PlayCircle, key: 'nav_simulations' },
       { to: '/conversational', icon: MessageSquare, key: 'nav_conversational' },
       { to: '/coaching', icon: Brain, key: 'nav_coaching' },
@@ -187,7 +188,10 @@ export const Sidebar = memo(function Sidebar() {
             {/* Logo + close */}
             <div className="flex items-center justify-between h-16 px-4 border-b border-line/30 shrink-0">
               <div className="flex items-center gap-3">
-                <img src="/gentera-logo.svg" alt="Gentera" className="w-9 h-9 shrink-0" />
+                <svg viewBox="0 0 220 60" height="28" className="w-auto shrink-0" aria-label="Sanfer" xmlns="http://www.w3.org/2000/svg">
+                  <text x="4" y="48" fontFamily="Georgia, 'Times New Roman', serif" fontSize="52" fontWeight="700" fontStyle="italic" fill="#CC1F2D" letterSpacing="-1">sanfer</text>
+                  <text x="200" y="22" fontFamily="Arial, sans-serif" fontSize="14" fill="#CC1F2D">®</text>
+                </svg>
                 <div className="flex flex-col">
                   <span className="text-slate-100 font-semibold text-sm leading-tight">Sanfer</span>
                   <span className="text-slate-600 text-[10px] leading-tight">{t('sidebar_tagline')}</span>

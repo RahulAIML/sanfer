@@ -66,7 +66,7 @@ export default function OrganizationPage() {
           <div className="card overflow-hidden">
             <h3 className="text-sm font-semibold text-slate-200 px-4 pt-4 mb-2">{t('kpi_total_members')}</h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+              <table className="w-full min-w-[640px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-line/40">
                     <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_advisor')}</th>

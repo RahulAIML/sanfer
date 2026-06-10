@@ -1,5 +1,6 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchSimulations } from './client'
+import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchSimReport, fetchSimulations } from './client'
+import { resolveEffectiveDates } from '../lib/dateUtils'
 
 // ─────────────────────────────────────────────
 // Stale-time constants — tuned per data volatility
@@ -28,16 +29,17 @@ const GC = {
 // ─────────────────────────────────────────────
 
 /**
- * Simulations fact table, pre-filtered to last 30 days.
- * `keepPreviousData` prevents a blank flash when the date range changes.
- *
- * TODO: Wire `dateFrom`/`dateTo` from the global filter store into the
- * queryKey and queryFn when the date range UI is made global.
+ * Simulations fact table for the requested date range (defaults to the last
+ * 30 days when both bounds are null). The effective range is part of the
+ * queryKey, so changing the global date filter fetches the right window
+ * instead of slicing a stale cache — each visited range is cached separately.
+ * `keepPreviousData` prevents a blank flash while the new range loads.
  */
-export function useSimulations() {
+export function useSimulations(dateFrom: string | null = null, dateTo: string | null = null) {
+  const { from, to } = resolveEffectiveDates(dateFrom, dateTo)
   return useQuery({
-    queryKey:        ['simulations'],
-    queryFn:         ({ signal }) => fetchSimulations(null, null, signal),
+    queryKey:        ['simulations', from, to],
+    queryFn:         ({ signal }) => fetchSimulations(from, to, signal),
     staleTime:       STALE.simulations,
     gcTime:          GC.simulations,
     placeholderData: keepPreviousData,
@@ -89,6 +91,20 @@ export function useLines() {
     staleTime: STALE.lines,
     gcTime:    GC.lines,
     select:    (res) => res.data,
+  })
+}
+
+/**
+ * Closing report for one session — lazy, only fires when a simId is provided
+ * (report modal open). Reports are immutable once written → cache forever.
+ */
+export function useSimReport(simId: number | null) {
+  return useQuery({
+    queryKey:  ['simReport', simId],
+    queryFn:   ({ signal }) => fetchSimReport(simId!, signal),
+    enabled:   simId !== null,
+    staleTime: Infinity,
+    gcTime:    1_000 * 60 * 30,
   })
 }
 

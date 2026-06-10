@@ -232,6 +232,47 @@ const t = {
     // Loading banner
     loading_data: 'Recopilando información de simuladores…',
     loading_data_sub: 'Esto puede tomar unos segundos',
+
+    // Pass criteria panel (SimulationsPage)
+    criteria_btn: 'Criterios de aprobación',
+    criteria_title: '¿Cómo se evalúa una simulación?',
+    criteria_verdict_t: 'Veredicto (Aprobado / No aprobado)',
+    criteria_verdict_d: 'La IA evalúa si el representante logró la prescripción del medicamento al cierre de la visita. Este veredicto define la aprobación — no es un corte por puntaje.',
+    criteria_rounds_t: 'Interacciones 1–5',
+    criteria_rounds_d: 'Cada interacción se califica con 1 (criterio cumplido) o 0 (no cumplido). La interacción 6 es el cierre de la visita y no se califica.',
+    criteria_score_t: 'Puntaje (0–100)',
+    criteria_score_d: 'Porcentaje de criterios cumplidos durante la visita. Se muestra en base 100.',
+    criteria_attempt_t: 'Un intento por ejercicio',
+    criteria_attempt_d: 'Durante la certificación cada ejercicio admite un solo intento por asesor.',
+
+    // Session report modal
+    report_btn: 'Ver reporte',
+    report_title: 'Reporte de la simulación',
+    report_download: 'Descargar reporte',
+    report_loading: 'Cargando reporte…',
+    report_error: 'No se pudo cargar el reporte.',
+    report_close: 'Cerrar',
+
+    // Certification page
+    nav_certification: 'Certificación',
+    cert_title: 'Certificación Sanfer',
+    cert_subtitle: 'Junio 2026 — del 8 al 22 de junio',
+    cert_window_badge: 'Período: 8 – 22 jun 2026',
+    cert_kpi_lines: 'Líneas',
+    cert_kpi_exercises: 'Ejercicios asignados',
+    cert_kpi_jefes: 'Jefes de Capacitación',
+    cert_kpi_sessions: 'Sesiones en el período',
+    cert_kpi_passrate: 'Aprobación',
+    cert_progress: 'Avance de certificación',
+    cert_completed: 'completado',
+    cert_col_line: 'Línea',
+    cert_col_members: 'Asesores',
+    cert_col_sims: 'Simuladores asignados',
+    cert_col_progress: 'Avance',
+    cert_col_pass: 'Aprob.',
+    cert_sessions: 'sesiones',
+    cert_open_exercise: 'Abrir ejercicio',
+    cert_legend: 'Avance = ejercicios completados / (asesores × 3 simuladores asignados) dentro del período de certificación.',
   },
   en: {
     // Branding
@@ -453,6 +494,47 @@ const t = {
     // Loading banner
     loading_data: 'Gathering simulation data…',
     loading_data_sub: 'This may take a few seconds',
+
+    // Pass criteria panel (SimulationsPage)
+    criteria_btn: 'Pass criteria',
+    criteria_title: 'How is a simulation evaluated?',
+    criteria_verdict_t: 'Verdict (Pass / Fail)',
+    criteria_verdict_d: 'The AI judges whether the rep secured the prescription by the end of the visit. This verdict defines passing — it is not a score cutoff.',
+    criteria_rounds_t: 'Interactions 1–5',
+    criteria_rounds_d: 'Each interaction scores 1 (criterion met) or 0 (not met). Interaction 6 is the visit closing and is not scored.',
+    criteria_score_t: 'Score (0–100)',
+    criteria_score_d: 'Percentage of criteria met during the visit, shown on a 100-point basis.',
+    criteria_attempt_t: 'One attempt per exercise',
+    criteria_attempt_d: 'During certification each exercise allows a single attempt per advisor.',
+
+    // Session report modal
+    report_btn: 'View report',
+    report_title: 'Simulation report',
+    report_download: 'Download report',
+    report_loading: 'Loading report…',
+    report_error: 'Could not load the report.',
+    report_close: 'Close',
+
+    // Certification page
+    nav_certification: 'Certification',
+    cert_title: 'Sanfer Certification',
+    cert_subtitle: 'June 2026 — June 8 to 22',
+    cert_window_badge: 'Period: Jun 8 – 22, 2026',
+    cert_kpi_lines: 'Lines',
+    cert_kpi_exercises: 'Assigned exercises',
+    cert_kpi_jefes: 'Training Chiefs',
+    cert_kpi_sessions: 'Sessions in period',
+    cert_kpi_passrate: 'Pass rate',
+    cert_progress: 'Certification progress',
+    cert_completed: 'completed',
+    cert_col_line: 'Line',
+    cert_col_members: 'Advisors',
+    cert_col_sims: 'Assigned simulators',
+    cert_col_progress: 'Progress',
+    cert_col_pass: 'Pass',
+    cert_sessions: 'sessions',
+    cert_open_exercise: 'Open exercise',
+    cert_legend: 'Progress = completed exercises / (advisors × 3 assigned simulators) within the certification period.',
   },
 } as const
 

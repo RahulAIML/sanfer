@@ -249,7 +249,7 @@ export default function BusinessLinesPage() {
           <h3 className="text-sm font-semibold text-slate-200">{es ? 'Detalle por Línea' : 'Line Detail'}</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-line/30">
                 <th className="text-left text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_name')}</th>

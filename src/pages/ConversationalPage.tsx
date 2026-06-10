@@ -354,7 +354,7 @@ export default function ConversationalPage() {
             {es ? 'Detalle por Interacción' : 'Interaction Detail'}
           </h3>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[560px] text-sm">
               <thead>
                 <tr className="border-b border-line/30 text-left">
                   <th className="pb-2 text-[11px] font-medium text-slate-600 pr-4">
@@ -453,7 +453,7 @@ export default function ConversationalPage() {
               {es ? 'Resumen Comparativo de Simuladores' : 'Simulator Comparison Summary'}
             </h3>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[560px] text-sm">
                 <thead>
                   <tr className="border-b border-line/30 text-left">
                     <th className="pb-2 text-[11px] font-medium text-slate-600 pr-4">#</th>

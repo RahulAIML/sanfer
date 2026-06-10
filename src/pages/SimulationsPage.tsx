@@ -1,23 +1,42 @@
 import { useState, useMemo, Fragment } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
-import { useTranslation } from '../lib/i18n'
+import { useTranslation, type TKey } from '../lib/i18n'
 import { useDebounce } from '../lib/useDebounce'
 import { PASS_THRESHOLD } from '../lib/analytics'
-import { Search, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { DateRangeFilter } from '../components/ui/DateRangeFilter'
+import { SimReportModal } from '../components/ui/SimReportModal'
+import {
+  Search, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp,
+  ChevronLeft, ChevronRight, BadgeCheck, FileText, Target, ListChecks, Gauge, Lock,
+} from 'lucide-react'
 import { cn } from '../lib/cn'
 
 const PAGE_SIZE = 50
+
+const CRITERIA: { icon: React.ComponentType<{ className?: string }>; titleKey: TKey; descKey: TKey }[] = [
+  { icon: Target,     titleKey: 'criteria_verdict_t', descKey: 'criteria_verdict_d' },
+  { icon: ListChecks, titleKey: 'criteria_rounds_t',  descKey: 'criteria_rounds_d' },
+  { icon: Gauge,      titleKey: 'criteria_score_t',   descKey: 'criteria_score_d' },
+  { icon: Lock,       titleKey: 'criteria_attempt_t', descKey: 'criteria_attempt_d' },
+]
 
 export default function SimulationsPage() {
   const { language } = useAppStore()
   const t = useTranslation(language)
   const { isLoading, isError, sims, activities, refetch } = useDashboardData()
 
+  // Global date range — same store the Overview page uses
+  const dateFrom     = useAppStore((s) => s.dateFrom)
+  const dateTo       = useAppStore((s) => s.dateTo)
+  const setDateRange = useAppStore((s) => s.setDateRange)
+
   // All hooks declared unconditionally — before any conditional returns
-  const [searchRaw,  setSearchRaw]  = useState('')
-  const [expandedId, setExpandedId] = useState<number | null>(null)
-  const [page,       setPage]       = useState(0)
+  const [searchRaw,    setSearchRaw]    = useState('')
+  const [expandedId,   setExpandedId]   = useState<number | null>(null)
+  const [page,         setPage]         = useState(0)
+  const [showCriteria, setShowCriteria] = useState(false)
+  const [reportSimId,  setReportSimId]  = useState<number | null>(null)
 
   const search = useDebounce(searchRaw, 300)
 
@@ -78,7 +97,7 @@ export default function SimulationsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 min-w-[180px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-600" />
           <input
             value={searchRaw}
@@ -87,6 +106,23 @@ export default function SimulationsPage() {
             className="input w-full pl-9"
           />
         </div>
+        <DateRangeFilter
+          from={dateFrom ?? ''} to={dateTo ?? ''}
+          onApply={(f, to_) => { setDateRange(f || null, to_ || null); setPage(0); setExpandedId(null) }}
+        />
+        <button
+          onClick={() => setShowCriteria((v) => !v)}
+          className={cn(
+            'flex items-center gap-1.5 text-xs border rounded-lg px-3 py-1.5 transition-all',
+            showCriteria
+              ? 'text-accent border-accent/40 bg-accent/5'
+              : 'text-slate-400 hover:text-slate-200 border-line/50 hover:border-line',
+          )}
+        >
+          <BadgeCheck className="w-3.5 h-3.5" />
+          {t('criteria_btn')}
+          {showCriteria ? <ChevronUp className="w-3 h-3 opacity-60" /> : <ChevronDown className="w-3 h-3 opacity-60" />}
+        </button>
         <span className="text-xs text-slate-600 ml-auto">
           {filtered.length} {t('simulations_count')}
           {filtered.length !== sims.length && (
@@ -95,9 +131,28 @@ export default function SimulationsPage() {
         </span>
       </div>
 
+      {showCriteria && (
+        <div className="card p-4 sm:p-5 border border-accent/20">
+          <h3 className="text-sm font-semibold text-slate-200 mb-3">{t('criteria_title')}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {CRITERIA.map(({ icon: Icon, titleKey, descKey }) => (
+              <div key={titleKey} className="rounded-xl bg-surface/60 border border-line/30 p-3.5">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="w-6 h-6 rounded-md bg-accent/10 flex items-center justify-center shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-accent" />
+                  </span>
+                  <span className="text-xs font-semibold text-slate-200">{t(titleKey)}</span>
+                </div>
+                <p className="text-[11px] text-slate-500 leading-relaxed">{t(descKey)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-line/40">
                 <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_advisor')}</th>
@@ -149,6 +204,15 @@ export default function SimulationsPage() {
                     {expanded && (
                       <tr className="bg-surface/50">
                         <td colSpan={6} className="px-4 py-4">
+                          <div className="flex justify-end mb-3">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setReportSimId(s.ID_Sim) }}
+                              className="flex items-center gap-1.5 text-xs text-accent border border-accent/30 hover:bg-accent/10 rounded-lg px-3 py-1.5 transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                              {t('report_btn')}
+                            </button>
+                          </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {[1, 2, 3, 4, 5, 6].map((r) => {
                               const q    = s[`Pregunta_${r}` as keyof typeof s] as string | null
@@ -216,6 +280,10 @@ export default function SimulationsPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {reportSimId !== null && (
+        <SimReportModal simId={reportSimId} language={language} onClose={() => setReportSimId(null)} />
       )}
     </div>
   )

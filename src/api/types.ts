@@ -59,6 +59,25 @@ export interface Simulation {
 export type SimulationsResponse = Simulation[] | { data: Simulation[]; total_records?: number }
 
 // ─────────────────────────────────────────────
+// Per-session closing report (bridge action=sim.report)
+// ─────────────────────────────────────────────
+export interface SimReportSection {
+  q: string
+  a: string   // multi-line answers use \n separators
+}
+
+export interface SimReport {
+  ID_Sim: number
+  ID_Caso_de_Uso: number
+  Usuario: string | null
+  Usuario_Nombre: string | null
+  Fecha_y_Hora: string | null
+  Calificacion: number
+  Titulo: string
+  Secciones: SimReportSection[]
+}
+
+// ─────────────────────────────────────────────
 // DIM_USERDIST (members)
 // ─────────────────────────────────────────────
 export interface Member {

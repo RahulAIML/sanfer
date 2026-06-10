@@ -5,9 +5,11 @@ import { Shell } from './components/layout/Shell'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { ChartSkeleton } from './components/ui/Skeleton'
 import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins } from './api/client'
+import { resolveEffectiveDates } from './lib/dateUtils'
 import OverviewPage from './pages/OverviewPage'
 
 const SimulationsPage = lazy(() => import('./pages/SimulationsPage'))
+const CertificationPage = lazy(() => import('./pages/CertificationPage'))
 const ConversationalPage = lazy(() => import('./pages/ConversationalPage'))
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'))
 const ActivitiesPage = lazy(() => import('./pages/ActivitiesPage'))
@@ -35,7 +37,8 @@ const queryClient = new QueryClient({
 // ─── localStorage cache persistence ───────────────────────────────────────────
 // Restores the previous session's API responses so the dashboard feels instant
 // on every page load after the first. Fresh data fetches in the background.
-const CACHE_KEY = 'sanfer-qc-v3'
+// v4: simulations queryKey now includes the date range
+const CACHE_KEY = 'sanfer-qc-v4'
 
 function restoreCache() {
   try {
@@ -54,7 +57,8 @@ function saveCache() {
     const entries: [readonly unknown[], unknown][] = queryClient
       .getQueryCache()
       .getAll()
-      .filter((q) => q.state.status === 'success' && q.state.data !== undefined)
+      // simReport entries are per-session one-offs — persisting them bloats quota
+      .filter((q) => q.state.status === 'success' && q.state.data !== undefined && q.queryKey[0] !== 'simReport')
       .map((q) => [q.queryKey, q.state.data])
     if (!entries.length) return
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), entries }))
@@ -75,8 +79,9 @@ queryClient.getQueryCache().subscribe((event) => {
 // Fire all API requests immediately at module load — before React renders anything.
 // Combined with cache restore above: if cache is warm, components see data on
 // first render; if cold, requests are already in-flight when components mount.
-// Wrap functions with updated signatures so the prefetch call matches TanStack's queryFn shape
-queryClient.prefetchQuery({ queryKey: ['simulations'], queryFn: ({ signal }) => fetchSimulations(null, null, signal), staleTime: STALE })
+// The simulations key must match useSimulations' default-range key exactly.
+const { from: defFrom, to: defTo } = resolveEffectiveDates(null, null)
+queryClient.prefetchQuery({ queryKey: ['simulations', defFrom, defTo], queryFn: ({ signal }) => fetchSimulations(defFrom, defTo, signal), staleTime: STALE })
 queryClient.prefetchQuery({ queryKey: ['activities'],  queryFn: ({ signal }) => fetchActivities(signal),             staleTime: STALE })
 queryClient.prefetchQuery({ queryKey: ['members'],     queryFn: ({ signal }) => fetchMembers(signal),                staleTime: STALE })
 queryClient.prefetchQuery({ queryKey: ['admins'],      queryFn: ({ signal }) => fetchAdmins(signal),                 staleTime: STALE })
@@ -100,6 +105,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<OverviewPage />} />
                 <Route path="/simulations" element={<SimulationsPage />} />
+                <Route path="/certification" element={<CertificationPage />} />
                 <Route path="/conversational" element={<ConversationalPage />} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
                 <Route path="/activities" element={<ActivitiesPage />} />

@@ -110,7 +110,7 @@ export default function LeaderboardPage() {
 
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead>
               <tr className="border-b border-line/40">
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-10 sm:w-12">{t('col_rank')}</th>

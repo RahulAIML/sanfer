@@ -16,15 +16,15 @@ import {
 // Call it directly and on-demand (drilldown, export) where actually needed.
 
 export function useDashboardData() {
-  // Use hooks from queries.ts so stale times are configured in one place
-  const activitiesQ = useActivities()
-  const simsQ       = useSimulations()
-  const membersQ    = useMembers()
-  const adminsQ     = useAdmins()
-
-  // Global date filter from Zustand store — client-side slice of the 30-day cache
+  // Global date filter from Zustand store — drives the simulations fetch window
   const dateFrom = useAppStore((s) => s.dateFrom)
   const dateTo   = useAppStore((s) => s.dateTo)
+
+  // Use hooks from queries.ts so stale times are configured in one place
+  const activitiesQ = useActivities()
+  const simsQ       = useSimulations(dateFrom, dateTo)
+  const membersQ    = useMembers()
+  const adminsQ     = useAdmins()
 
   // Fine-grained loading flags so pages can render as soon as their data arrives
   const simsLoading = simsQ.isLoading
@@ -40,9 +40,9 @@ export function useDashboardData() {
   const members    = useMemo(() => membersQ.data ?? [], [membersQ.data])
   const admins     = useMemo(() => adminsQ.data ?? [], [adminsQ.data])
 
-  // Apply test-user filter, then apply global date filter from store.
-  // No re-fetch needed: the API result is cached in the 30-day window; we just
-  // slice it further in memory whenever the store's dateFrom/dateTo change.
+  // The fetch window already matches the store's date range (wired into the
+  // query above); the in-memory slice is kept as a cheap guard so cached data
+  // from a wider window can never leak rows outside the selected range.
   const sims = useMemo(() => {
     const base = filterTestUsers(simsQ.data ?? [])
     if (!dateFrom && !dateTo) return base

@@ -181,7 +181,7 @@ export default function OverviewPage() {
     return (
       <div className="space-y-6">
         <div className="h-8 w-48 skeleton rounded-lg" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="card p-5 h-28 skeleton rounded-xl" />
           ))}
@@ -300,7 +300,7 @@ export default function OverviewPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard icon={PlayCircle}   label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
         <KpiCard icon={BarChart3}    label={t('kpi_avg_score')}          value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet"  />
         <KpiCard icon={CheckCircle2} label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
