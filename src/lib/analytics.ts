@@ -1,4 +1,5 @@
 import type { Activity, Administrator, LineTag, Member, Simulation } from '../api/types'
+import { CERT_LINES } from './certification'
 
 // re-export so pages can import directly
 export type { Simulation }
@@ -450,6 +451,16 @@ export interface LineStat {
   activeUsers: number
 }
 
+// Certification exercises belong to exactly one línea (only #420 is shared by
+// two), so the exercise itself identifies the line when the member lookup fails.
+const EXERCISE_TO_LINES = (() => {
+  const map = new Map<number, number[]>()
+  for (const line of CERT_LINES)
+    for (const sim of line.sims)
+      map.set(sim.saexId, [...(map.get(sim.saexId) ?? []), line.tagId])
+  return map
+})()
+
 export function computeLineStats(
   lines: LineTag[],
   members: Member[],
@@ -464,13 +475,20 @@ export function computeLineStats(
 
   const userToLine = new Map<string, number>()
   members.forEach((m) => {
-    if (m.mb_idTag1 && m.mb_user) userToLine.set(m.mb_user, m.mb_idTag1)
+    if (m.mb_idTag1 && m.mb_user) userToLine.set(m.mb_user.toLowerCase(), m.mb_idTag1)
   })
 
   const simsByLine = new Map<number, Simulation[]>()
   sims.forEach((s) => {
     if (!s.Usuario) return
-    const lineId = userToLine.get(s.Usuario)
+    // 1st: the advisor's member record names their line.
+    // 2nd: some advisors exist only in the simulator (no member record) —
+    //      attribute by the exercise's owning line, unless it's ambiguous (#420).
+    let lineId = userToLine.get(s.Usuario.toLowerCase())
+    if (!lineId) {
+      const owners = EXERCISE_TO_LINES.get(s.ID_Caso_de_Uso)
+      if (owners?.length === 1) lineId = owners[0]
+    }
     if (!lineId) return
     if (!simsByLine.has(lineId)) simsByLine.set(lineId, [])
     simsByLine.get(lineId)!.push(s)
