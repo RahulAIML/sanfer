@@ -90,10 +90,12 @@ export async function fetchSimReport(simId: number, signal?: AbortSignal): Promi
   return resp.data
 }
 
-// Members are filtered to real participants (internal rolplay accounts dropped)
+// Members come via the bridge org proxy — trimmed to the fields the dashboard
+// reads (~35 KB wire vs ~800 KB raw upstream) and disk-cached server-side.
+// They are filtered to real participants (internal rolplay accounts dropped)
 // and names entity-decoded HERE so every page and KPI sees identical data.
 export async function fetchMembers(signal?: AbortSignal): Promise<MembersResponse> {
-  const resp = await fetchJSON<MembersResponse>(`${BASE}/data/${CLIENT}/members`, signal)
+  const resp = await fetchJSON<MembersResponse>(`${BRIDGE_BASE}/?action=org.members`, signal)
   const data = (resp.data ?? [])
     .filter((m) => !isInternalEmail(m.mb_email) && !isInternalEmail(m.mb_user))
     .map((m) => ({
@@ -107,7 +109,7 @@ export async function fetchMembers(signal?: AbortSignal): Promise<MembersRespons
 // 'dev' profiles are platform tooling accounts ("Administrador Dev"), not part
 // of the Sanfer organization — excluded from counts, the org tree, and tables.
 export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse> {
-  const resp = await fetchJSON<AdminsResponse>(`${BASE}/data/${CLIENT}/administrators`, signal)
+  const resp = await fetchJSON<AdminsResponse>(`${BRIDGE_BASE}/?action=org.admins`, signal)
   const data = (resp.data ?? [])
     .filter((a) => a.rpa_profile_type !== 'dev' && !isInternalEmail(a.rpa_email))
     .map((a) => ({ ...a, rpa_full_name: decodeEntities(a.rpa_full_name) }))

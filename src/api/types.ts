@@ -80,36 +80,21 @@ export interface SimReport {
 // ─────────────────────────────────────────────
 // DIM_USERDIST (members)
 // ─────────────────────────────────────────────
+// Served by the bridge org.members proxy — only the fields the dashboard
+// reads (the raw platform endpoint ships ~25 fields incl. user tokens).
 export interface Member {
   mb_id: number
   mb_fullname: string
   mb_email: string
-  mb_employee_code: string
+  mb_user: string
   mb_admin: number
   mb_status: number          // 1 = active, 0 = inactive
-  mb_date_create: string
-  mb_last_login: string | null
   mb_designation: string
-  mb_branch: string
-  mb_city: string
-  mb_country: string
-  mb_ruta: string
-  mb_line: string
-  mb_state: string
-  mb_user: string
-  mb_reference: string | null
-  mb_idDepartament: number
   mb_idTag1: number          // 0 = no line assigned; maps to LineTag.id
-  mb_idTag2: number
-  mb_idTag3: number
-  mb_group: number
-  mb_headquarters: string
-  mb_special_group: number
-  mb_user_token: string
 }
 
 export interface MembersResponse {
-  client: string
+  ok?: boolean
   count: number
   data: Member[]
 }
@@ -119,25 +104,17 @@ export interface MembersResponse {
 // ─────────────────────────────────────────────
 export type ProfileType = 'dev' | 'tenant' | 'supervisor' | 'admin' | 'enradmin'
 
+// Served by the bridge org.admins proxy — trimmed to the fields in use.
 export interface Administrator {
   rpa_id: number
   rpa_full_name: string
   rpa_email: string
   rpa_profile_type: ProfileType
   rpa_parent: number
-  rpa_sede: string
-  rpa_user: string
-  rpa_company: string
-  rpa_create_date: string
-  rpa_mod_admin: boolean
-  rpa_mod_creator: boolean
-  rpa_mod_doedit: boolean
-  rpa_is_demo: boolean
-  rp_assoc_tenant: number
 }
 
 export interface AdminsResponse {
-  client: string
+  ok?: boolean
   count: number
   data: Administrator[]
 }

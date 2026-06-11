@@ -45,21 +45,30 @@ function restoreCache() {
     const raw = localStorage.getItem(CACHE_KEY)
     if (!raw) return
     const saved: { ts: number; entries: [readonly unknown[], unknown][] } = JSON.parse(raw)
-    if (Date.now() - saved.ts > GC) return // expired — let fresh fetch run
+    // Always restore, no matter how old: stale data paints the UI instantly
+    // and React Query (seeing the old updatedAt) refetches in the background.
+    // An empty screen is never faster than yesterday's numbers.
     saved.entries.forEach(([key, data]) => {
       queryClient.setQueryData(key, data, { updatedAt: saved.ts })
     })
   } catch { /* corrupt cache — ignore */ }
 }
 
+// One oversized entry (a 12-month simulations payload is several MB) would
+// overflow the ~5 MB localStorage quota and silently kill persistence for
+// everything else — skip any entry bigger than this.
+const MAX_PERSISTED_ENTRY_BYTES = 1_500_000
+
 function saveCache() {
   try {
-    const entries: [readonly unknown[], unknown][] = queryClient
-      .getQueryCache()
-      .getAll()
+    const entries: [readonly unknown[], unknown][] = []
+    for (const q of queryClient.getQueryCache().getAll()) {
+      if (q.state.status !== 'success' || q.state.data === undefined) continue
       // simReport entries are per-session one-offs — persisting them bloats quota
-      .filter((q) => q.state.status === 'success' && q.state.data !== undefined && q.queryKey[0] !== 'simReport')
-      .map((q) => [q.queryKey, q.state.data])
+      if (q.queryKey[0] === 'simReport') continue
+      if (JSON.stringify(q.state.data).length > MAX_PERSISTED_ENTRY_BYTES) continue
+      entries.push([q.queryKey, q.state.data])
+    }
     if (!entries.length) return
     localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), entries }))
   } catch { /* localStorage quota — skip */ }
