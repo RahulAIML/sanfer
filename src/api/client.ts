@@ -29,6 +29,26 @@ export function simDate(fecha: string | null | undefined): string {
 }
 
 // ─────────────────────────────────────────────
+// Platform data hygiene
+// ─────────────────────────────────────────────
+
+// The platform API returns names with HTML entities ("G&oacute;mez" → "Gómez").
+// A detached <textarea> decodes every named/numeric entity without executing markup.
+const entityBox = typeof document !== 'undefined' ? document.createElement('textarea') : null
+function decodeEntities(s: string | null | undefined): string {
+  if (!s) return ''
+  if (!entityBox || !s.includes('&')) return s
+  entityBox.innerHTML = s
+  return entityBox.value
+}
+
+// Internal platform accounts (Usuario Dev/Tester/Demo/Contenido @rolplay.net and
+// any rolplay-domain address) are admin tooling, not Sanfer participants.
+function isInternalEmail(email: string | null | undefined): boolean {
+  return /rolplay/i.test(email ?? '')
+}
+
+// ─────────────────────────────────────────────
 // Core fetch utility
 // ─────────────────────────────────────────────
 
@@ -70,12 +90,28 @@ export async function fetchSimReport(simId: number, signal?: AbortSignal): Promi
   return resp.data
 }
 
+// Members are filtered to real participants (internal rolplay accounts dropped)
+// and names entity-decoded HERE so every page and KPI sees identical data.
 export async function fetchMembers(signal?: AbortSignal): Promise<MembersResponse> {
-  return fetchJSON<MembersResponse>(`${BASE}/data/${CLIENT}/members`, signal)
+  const resp = await fetchJSON<MembersResponse>(`${BASE}/data/${CLIENT}/members`, signal)
+  const data = (resp.data ?? [])
+    .filter((m) => !isInternalEmail(m.mb_email) && !isInternalEmail(m.mb_user))
+    .map((m) => ({
+      ...m,
+      mb_fullname:    decodeEntities(m.mb_fullname),
+      mb_designation: decodeEntities(m.mb_designation),
+    }))
+  return { ...resp, data, count: data.length }
 }
 
+// 'dev' profiles are platform tooling accounts ("Administrador Dev"), not part
+// of the Sanfer organization — excluded from counts, the org tree, and tables.
 export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse> {
-  return fetchJSON<AdminsResponse>(`${BASE}/data/${CLIENT}/administrators`, signal)
+  const resp = await fetchJSON<AdminsResponse>(`${BASE}/data/${CLIENT}/administrators`, signal)
+  const data = (resp.data ?? [])
+    .filter((a) => a.rpa_profile_type !== 'dev' && !isInternalEmail(a.rpa_email))
+    .map((a) => ({ ...a, rpa_full_name: decodeEntities(a.rpa_full_name) }))
+  return { ...resp, data, count: data.length }
 }
 
 export async function fetchLines(signal?: AbortSignal): Promise<LinesResponse> {

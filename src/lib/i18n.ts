@@ -36,6 +36,7 @@ const t = {
     sub_with_simulations: 'con simulaciones',
     sub_registered: 'registrados',
     sub_active: 'activos',
+    sub_cert_slots: '15 líneas × 3 simuladores',
 
     // Charts / Sections
     score_trend: 'Tendencia de Puntaje',
@@ -306,6 +307,7 @@ const t = {
     sub_with_simulations: 'with simulations',
     sub_registered: 'registered',
     sub_active: 'active',
+    sub_cert_slots: '15 lines × 3 simulators',
 
     score_trend: 'Score Trend',
     pass_fail_dist: 'Pass / Fail Distribution',
