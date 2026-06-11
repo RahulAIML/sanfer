@@ -6,7 +6,7 @@ import { filterTestUsers } from '../lib/analytics'
 import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
-  BadgeCheck, CalendarRange, ExternalLink, GitBranch, Layers, PlayCircle, Users, CheckCircle2,
+  BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, CheckCircle2,
 } from 'lucide-react'
 
 interface LineProgress {
@@ -18,7 +18,7 @@ interface LineProgress {
   completed: number      // distinct (advisor, assigned sim) pairs with a session
   passed: number         // of those, pairs whose best session passed
   sessions: number       // raw session count on the line's sims (line members only)
-  simStats: { product: string; saexId: number; link: string; sessions: number; passed: number }[]
+  simStats: { product: string; saexId: number; sessions: number; passed: number }[]
 }
 
 export default function CertificationPage() {
@@ -87,7 +87,6 @@ export default function CertificationPage() {
         simStats: line.sims.map((sim) => ({
           product:  sim.product,
           saexId:   sim.saexId,
-          link:     sim.link,
           sessions: simsById.get(sim.saexId)?.sessions ?? 0,
           passed:   simsById.get(sim.saexId)?.passedUsers.size ?? 0,
         })),
@@ -196,17 +195,10 @@ export default function CertificationPage() {
                   <div className="space-y-1.5">
                     {line.simStats.map((sim) => (
                       <div key={`${sim.saexId}-${sim.product}`} className="flex items-center justify-between gap-2 text-xs">
-                        <a
-                          href={sim.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={t('cert_open_exercise')}
-                          className="flex items-center gap-1.5 text-slate-400 hover:text-accent transition-colors min-w-0 group"
-                        >
-                          <ExternalLink className="w-3 h-3 shrink-0 text-slate-700 group-hover:text-accent transition-colors" />
+                        <span className="flex items-center gap-1.5 text-slate-400 min-w-0">
                           <span className="truncate">{sim.product}</span>
                           <span className="text-slate-700 shrink-0">#{sim.saexId}</span>
-                        </a>
+                        </span>
                         <span className="text-slate-600 shrink-0 tabular-nums">
                           {sim.sessions} {t('cert_sessions')}
                           {sim.passed > 0 && <span className="text-success"> · {sim.passed} ✓</span>}
