@@ -11,10 +11,14 @@ interface Props {
   className?: string
 }
 
-const PRESETS: { label: string; days: number | null }[] = [
-  { label: 'All', days: null },
-  { label: '15D', days: 15 },
+type Preset = { label: string; days?: number; months?: number }
+const PRESETS: Preset[] = [
+  { label: 'All' },
   { label: '7D',  days: 7 },
+  { label: '15D', days: 15 },
+  { label: '3M',  months: 3 },
+  { label: '6M',  months: 6 },
+  { label: '12M', months: 12 },
 ]
 
 export function DateRangeFilter({ from, to, onApply, label, className }: Props) {
@@ -28,11 +32,12 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
   const isPending = pendingFrom !== from || pendingTo !== to
   const isActive  = !!(from || to)
 
-  function applyPreset(days: number | null) {
+  function applyPreset(p: Preset) {
     const today = new Date().toISOString().slice(0, 10)
-    if (days === null) { onApply(DATA_EPOCH, today); return }
+    if (!p.days && !p.months) { onApply(DATA_EPOCH, today); return }
     const past = new Date()
-    past.setDate(past.getDate() - days)
+    if (p.months) past.setMonth(past.getMonth() - p.months)
+    else if (p.days) past.setDate(past.getDate() - p.days)
     onApply(past.toISOString().slice(0, 10), today)
   }
 
@@ -54,7 +59,7 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
       {PRESETS.map((p) => (
         <button
           key={p.label}
-          onClick={() => applyPreset(p.days)}
+          onClick={() => applyPreset(p)}
           className="text-[11px] px-2 py-1 rounded border border-line/50 text-slate-500 hover:text-slate-200 hover:border-line transition-colors leading-none"
         >
           {p.label}
