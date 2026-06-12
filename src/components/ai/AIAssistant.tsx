@@ -7,6 +7,7 @@ import { useAppStore } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { useDashboardData } from '../../hooks/useDashboardData'
 import { buildAIContext } from '../../lib/analytics'
+import { useObjections } from '../../api/queries'
 
 // ─────────────────────────────────────────────
 // Constants
@@ -197,6 +198,7 @@ export function AIAssistant() {
 
   // Dashboard data — used for context, but AI works even if unavailable
   const { kpis, sims, activities, actStats, userStats, isLoading: dashLoading } = useDashboardData()
+  const { data: objStats } = useObjections()
 
   const [messages,      setMessages]      = useState<Message[]>([])
   const [input,         setInput]         = useState('')
@@ -271,7 +273,7 @@ export function AIAssistant() {
     let ctx = `[Current page: ${pageName}]\n[Language: ${lang}]\n\n`
 
     if (kpis && !dashLoading) {
-      ctx += buildAIContext(kpis, sims, activities, actStats ?? [], userStats ?? [])
+      ctx += buildAIContext(kpis, sims, activities, actStats ?? [], userStats ?? [], objStats ?? [])
     } else {
       ctx +=
         'DASHBOARD DATA: Currently loading or unavailable.\n' +

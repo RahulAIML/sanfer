@@ -522,12 +522,15 @@ export function buildAIContext(
   activities: Activity[],
   actStats: ActivityStat[],
   userStats: UserStat[],
+  objections: import('../api/types').ObjectionStat[] = [],
 ): string {
   const topUsers = userStats.slice(0, 5).map((u) => `${u.name} (${u.avgScore}%)`).join(', ')
   const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
   // Pass only last 5 sims — avoid serializing the full dataset into the AI context
   const recent   = sims.slice(-5).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% (${s.Diagnostico_Final})`).join(', ')
   const actNames = activities.slice(0, 20).map((a) => a.Caso_de_Uso).join(', ')
+  const worst5   = objections.slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
+  const best5    = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
 
   return `
 SANFER SALES TRAINING INTELLIGENCE PLATFORM — LIVE DASHBOARD DATA
@@ -552,5 +555,10 @@ Recent Simulations (last 5):
 ${recent}
 
 Activities Available (sample): ${actNames}
+
+OBJECTION HANDLING ("Manejo de Objeciones"):
+Definition — Success Rate = % of sessions where the rep scored full points on that specific doctor objection.
+Total unique objections tracked: ${objections.length}
+${objections.length > 0 ? `Hardest objections (sorted worst-first):\n${worst5}\nEasiest objections:\n${best5}` : 'No objection data available for the current date range.'}
   `.trim()
 }
