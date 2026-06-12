@@ -66,6 +66,17 @@ export interface SimReportSection {
   a: string   // multi-line answers use \n separators
 }
 
+export interface SimRonda {
+  n: number
+  pregunta: string | null
+  respuesta_rep: string | null
+  criterio: string
+  respuesta_modelo: string
+  analisis: string
+  puntos: number | null   // 0 or 1; null = unscored (round 6 or missing)
+  max_puntos: number
+}
+
 export interface SimReport {
   ID_Sim: number
   ID_Caso_de_Uso: number
@@ -73,7 +84,9 @@ export interface SimReport {
   Usuario_Nombre: string | null
   Fecha_y_Hora: string | null
   Calificacion: number
+  Producto: string          // simulator/product name from usecases table
   Titulo: string
+  Rondas: SimRonda[]        // parsed interaction rounds 1–5
   Secciones: SimReportSection[]
 }
 
