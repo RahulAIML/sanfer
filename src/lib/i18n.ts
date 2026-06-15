@@ -257,8 +257,9 @@ const t = {
     // Certification page
     nav_certification: 'Certificación',
     cert_title: 'Certificación Sanfer',
-    cert_subtitle: 'Junio 2026 — del 8 al 22 de junio',
-    cert_window_badge: 'Período: 8 – 22 jun 2026',
+    cert_subtitle: 'Junio 2026',
+    cert_window_badge_active: 'Período activo',
+    cert_window_badge_closed: 'Período cerrado',
     cert_kpi_lines: 'Líneas',
     cert_kpi_exercises: 'Ejercicios asignados',
     cert_kpi_jefes: 'Jefes de Capacitación',
@@ -276,7 +277,7 @@ const t = {
     cert_legend: 'Avance = ejercicios completados / (asesores × 3 simuladores asignados) dentro del período de certificación.',
     cert_kpi_certified: 'Certificados',
     cert_certified_title: 'Asesores Certificados',
-    cert_certified_def: 'Certificado = 80% o más en cada uno de sus 3 simuladores asignados durante el período.',
+    cert_certified_def: 'Certificado = completó los 3 simuladores asignados durante el período.',
     cert_certified_none: 'Aún no hay asesores certificados en el período.',
   },
   en: {
@@ -524,8 +525,9 @@ const t = {
     // Certification page
     nav_certification: 'Certification',
     cert_title: 'Sanfer Certification',
-    cert_subtitle: 'June 2026 — June 8 to 22',
-    cert_window_badge: 'Period: Jun 8 – 22, 2026',
+    cert_subtitle: 'June 2026',
+    cert_window_badge_active: 'Active period',
+    cert_window_badge_closed: 'Period closed',
     cert_kpi_lines: 'Lines',
     cert_kpi_exercises: 'Assigned exercises',
     cert_kpi_jefes: 'Training Chiefs',
@@ -543,7 +545,7 @@ const t = {
     cert_legend: 'Progress = completed exercises / (advisors × 3 assigned simulators) within the certification period.',
     cert_kpi_certified: 'Certified',
     cert_certified_title: 'Certified Advisors',
-    cert_certified_def: 'Certified = 80% or above on each of their 3 assigned simulators during the period.',
+    cert_certified_def: 'Certified = completed all 3 assigned simulators during the period.',
     cert_certified_none: 'No advisors certified in the period yet.',
   },
 } as const

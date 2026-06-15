@@ -24,6 +24,10 @@ export interface CertLine {
 export const CERT_WINDOW = { from: '2026-06-08', to: '2026-06-22' } as const
 export const CERT_TITLE  = 'Certificación Sanfer — Junio 2026'
 export const CERT_TOTAL_SLOTS = 45   // 15 líneas × 3 simuladores (ID 420 shared by 2 líneas → 44 unique)
+// Minimum score on each assigned simulator to be considered certified.
+// Pending CTO confirmation: official platform may use completion-only (0 = any attempt).
+// Update this constant — do NOT redefine it in individual pages.
+export const CERT_SCORE_BAR = 80
 
 const L = 'https://improveyourpitchbeta.net/demorp6'
 

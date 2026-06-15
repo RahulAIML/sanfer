@@ -3,15 +3,13 @@ import { useSimulations, useMembers } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers } from '../lib/analytics'
-import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES } from '../lib/certification'
+import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES, CERT_SCORE_BAR } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
   BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, CheckCircle2, Award,
 } from 'lucide-react'
 
-// Certified = above 80% on EACH of the line's 3 assigned simulators (best
-// attempt per simulator) within the certification window.
-const CERT_SCORE_BAR = 80
+// CERT_SCORE_BAR imported from certification.ts — single source of truth
 
 interface CertifiedAdvisor {
   email: string
@@ -157,19 +155,36 @@ export default function CertificationPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
-            <BadgeCheck className="w-6 h-6 text-accent" />
-            {t('cert_title')}
-          </h1>
-          <p className="text-slate-500 text-sm mt-0.5">{t('cert_subtitle')}</p>
-        </div>
-        <span className="flex items-center gap-1.5 text-xs text-accent bg-accent/10 border border-accent/20 px-3 py-1.5 rounded-full">
-          <CalendarRange className="w-3.5 h-3.5" />
-          {t('cert_window_badge')}
-        </span>
-      </div>
+      {(() => {
+        const today      = new Date().toISOString().slice(0, 10)
+        const isClosed   = today > CERT_WINDOW.to
+        const fmt = (iso: string) => {
+          const d = new Date(iso + 'T12:00:00')
+          return es
+            ? `${d.getDate()} ${d.toLocaleString('es-MX', { month: 'short' })} ${d.getFullYear()}`
+            : `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}, ${d.getFullYear()}`
+        }
+        const rangeLabel = `${fmt(CERT_WINDOW.from)} – ${fmt(CERT_WINDOW.to)}`
+        return (
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-50 tracking-tight flex items-center gap-2">
+                <BadgeCheck className="w-6 h-6 text-accent" />
+                {t('cert_title')}
+              </h1>
+              <p className="text-slate-500 text-sm mt-0.5">{t('cert_subtitle')} — {rangeLabel}</p>
+            </div>
+            <span className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border ${
+              isClosed
+                ? 'text-slate-400 bg-slate-700/30 border-slate-600/40'
+                : 'text-accent bg-accent/10 border-accent/20'
+            }`}>
+              <CalendarRange className="w-3.5 h-3.5" />
+              {isClosed ? t('cert_window_badge_closed') : t('cert_window_badge_active')} · {rangeLabel}
+            </span>
+          </div>
+        )
+      })()}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
