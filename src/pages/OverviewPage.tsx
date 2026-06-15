@@ -8,7 +8,7 @@ import {
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { CERT_TOTAL_SLOTS, CERT_WINDOW } from '../lib/certification'
-import { useSimulations } from '../api/queries'
+import { useSimulations, useTopStats } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
@@ -176,6 +176,16 @@ export default function OverviewPage() {
   const activeScoreDist= useMemo(() => userFilterActive ? computeScoreDistribution(filteredSims) : scoreDist,        [userFilterActive, filteredSims, scoreDist])
   const activeUserStats= useMemo(() => userFilterActive ? computeUserStats(filteredSims) : userStats,                [userFilterActive, filteredSims, userStats])
 
+  // avg_best_score from TopStats matches the official platform's "Average Rating"
+  // (average of each user's best score all-time). Only use when no filter is active.
+  const topStatsQ  = useTopStats()
+  const avgDisplay = useMemo(() => {
+    if (!activeKpis) return '…'
+    if (!anyFilterActive && topStatsQ.data?.stats.avg_best_score != null)
+      return `${topStatsQ.data.stats.avg_best_score}%`
+    return `${activeKpis.averageScore}%`
+  }, [activeKpis, anyFilterActive, topStatsQ.data])
+
   // trend from useDashboardData is already date-filtered — use it directly
   const filteredTrend = trend ?? []
 
@@ -320,7 +330,7 @@ export default function OverviewPage() {
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-4">
         <KpiCard icon={PlayCircle}      label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
-        <KpiCard icon={BarChart3}       label={t('kpi_avg_score')}          value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet"  />
+        <KpiCard icon={BarChart3}       label={t('kpi_avg_score')}          value={avgDisplay}                     sub={t('sub_overall')}           color="violet"  />
         <KpiCard icon={CheckCircle2}    label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
         <KpiCard icon={Users}           label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
         <KpiCard icon={GraduationCap}   label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')} color="pass"   />
