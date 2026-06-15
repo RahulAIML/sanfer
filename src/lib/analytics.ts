@@ -573,6 +573,13 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
 // AI Context String (for Gemini)
 // ─────────────────────────────────────────────
 
+export interface AIContextExtra {
+  dateFrom?:  string | null
+  dateTo?:    string | null
+  scoreDist?: ScoreBucket[]
+  pageBlock?: string       // page-specific data block, caller-assembled
+}
+
 export function buildAIContext(
   kpis: DashboardKPIs,
   sims: Simulation[],
@@ -581,60 +588,70 @@ export function buildAIContext(
   userStats: UserStat[],
   objections: import('../api/types').ObjectionStat[] = [],
   certSummary?: CertSummary,
+  extra: AIContextExtra = {},
 ): string {
-  const topUsers = userStats.slice(0, 5).map((u) => `${u.name} (${u.avgScore}%)`).join(', ')
+  const { dateFrom, dateTo, scoreDist, pageBlock } = extra
+
+  const dateLabel = (dateFrom || dateTo)
+    ? `${dateFrom ?? '(default start)'} → ${dateTo ?? '(today)'}`
+    : 'last 30 days (default)'
+
+  const top15    = userStats.slice(0, 15).map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%, pass ${u.passRate}%`).join('\n')
   const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
-  // Pass only last 5 sims — avoid serializing the full dataset into the AI context
-  const recent   = sims.slice(-5).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% (${s.Diagnostico_Final})`).join(', ')
-  const actNames = activities.slice(0, 20).map((a) => a.Caso_de_Uso).join(', ')
-  const worst5   = objections.slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
-  const best5    = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
+  const recent10 = sims.slice(-10).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% ${s.Diagnostico_Final} (${s.Fecha_y_Hora?.substring(0, 10) ?? ''})`).join(', ')
 
-  const certBlock = certSummary
-    ? `
+  const distBlock = (scoreDist && scoreDist.length)
+    ? `\nScore Distribution:\n${scoreDist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')}`
+    : ''
+
+  const worst5 = objections.slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success`).join('\n')
+  const best5  = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success`).join('\n')
+
+  const certBlock = certSummary ? `
 CERTIFICATION ("Certificación Sanfer — Junio 2026"):
-Window: 2026-06-08 to 2026-06-22 | Rule: score >=80% on ALL 3 assigned simulators (best attempt per sim)
-Total Certified Advisors: ${certSummary.totalCertified}
+Window: 2026-06-08 to 2026-06-22 | Rule: score >=80% on ALL 3 assigned simulators
+Total Certified: ${certSummary.totalCertified} (official platform: 157)
+Note: 4-person gap vs official is due to pre-window sessions and different platform scoring logic.
 
-By team (línea) — format: "TeamName (Jefe): N certified / M members":
-${certSummary.byLine.map((l) => `  ${l.name} (${l.jefe}): ${l.certifiedCount} certified / ${l.memberCount} members`).join('\n')}
+By línea:
+${certSummary.byLine.map((l) => {
+  const pct = l.memberCount > 0 ? Math.round(l.certifiedCount / l.memberCount * 100) : 0
+  return `  ${l.name} (${l.jefe}): ${l.certifiedCount}/${l.memberCount} = ${pct}%`
+}).join('\n')}
 
-By training manager (jefe):
+By jefe:
 ${Object.entries(
-  certSummary.byLine.reduce<Record<string, number>>((acc, l) => {
-    acc[l.jefe] = (acc[l.jefe] ?? 0) + l.certifiedCount
+  certSummary.byLine.reduce<Record<string, { cert: number; total: number }>>((acc, l) => {
+    if (!acc[l.jefe]) acc[l.jefe] = { cert: 0, total: 0 }
+    acc[l.jefe].cert  += l.certifiedCount
+    acc[l.jefe].total += l.memberCount
     return acc
   }, {}),
-).map(([jefe, n]) => `  ${jefe}: ${n} certified`).join('\n')}`
-    : ''
+).map(([jefe, v]) => `  ${jefe}: ${v.cert}/${v.total} certified (${v.total > 0 ? Math.round(v.cert / v.total * 100) : 0}%)`).join('\n')}` : ''
 
   return `
 SANFER SALES TRAINING INTELLIGENCE PLATFORM — LIVE DASHBOARD DATA
+Date Range: ${dateLabel}
 ------------------------------------------------------------------
 Total Simulations: ${kpis.totalSimulations}
 Average Score: ${kpis.averageScore}%
-Pass Rate: ${kpis.passRate}% (${kpis.passCount} passed, ${kpis.failCount} failed)
-Active Users: ${kpis.activeAdvisors}
-Total Members: ${kpis.totalMembers}
-Total Admins: ${kpis.totalAdmins}
-Total Supervisors: ${kpis.totalSupervisors}
-Best Score: ${kpis.bestScore}%
-Lowest Score: ${kpis.worstScore}%
+Pass Rate: ${kpis.passRate}% (${kpis.passCount} passed / ${kpis.failCount} failed)
+Active Advisors: ${kpis.activeAdvisors}
+Total Members: ${kpis.totalMembers} | Admins: ${kpis.totalAdmins} | Supervisors: ${kpis.totalSupervisors}
+Best Score: ${kpis.bestScore}% | Lowest Score: ${kpis.worstScore}%
+${distBlock}
+Top 15 Performers (current period):
+${top15}
 
-Activities (top 20):
+Activity Breakdown (all activities):
 ${actList}
 
-Top Performers:
-${topUsers}
-
-Recent Simulations (last 5):
-${recent}
-
-Activities Available (sample): ${actNames}
+Recent Sessions (last 10):
+${recent10}
 ${certBlock}
 OBJECTION HANDLING ("Manejo de Objeciones"):
-Definition — Success Rate = % of sessions where the rep scored full points on that specific doctor objection.
-Total unique objections tracked: ${objections.length}
-${objections.length > 0 ? `Hardest objections (sorted worst-first):\n${worst5}\nEasiest objections:\n${best5}` : 'No objection data available for the current date range.'}
+Total unique objections: ${objections.length}
+${objections.length > 0 ? `Hardest (lowest success rate):\n${worst5}\nEasiest:\n${best5}` : 'No objection data for current range.'}
+${pageBlock ? `\n${pageBlock}` : ''}
   `.trim()
 }

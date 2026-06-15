@@ -7,7 +7,7 @@ import { useAppStore } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { useDashboardData } from '../../hooks/useDashboardData'
 import { buildAIContext, computeCertSummary } from '../../lib/analytics'
-import { useObjections, useSimulations } from '../../api/queries'
+import { useObjections, useSimulations, useTopStats } from '../../api/queries'
 import { CERT_WINDOW } from '../../lib/certification'
 
 // ─────────────────────────────────────────────
@@ -193,18 +193,19 @@ const greetingMdComponents = {
 // ─────────────────────────────────────────────
 
 export function AIAssistant() {
-  const { aiOpen, toggleAI, language } = useAppStore()
+  const { aiOpen, toggleAI, language, dateFrom, dateTo } = useAppStore()
   const t = useTranslation(language)
   const location = useLocation()
 
   // Dashboard data — used for context, but AI works even if unavailable
-  const { kpis, sims, activities, actStats, userStats, members, isLoading: dashLoading } = useDashboardData()
+  const { kpis, sims, activities, actStats, userStats, members, scoreDist, isLoading: dashLoading } = useDashboardData()
   const certSimsQ  = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
   const certSummary = useMemo(
     () => computeCertSummary(certSimsQ.data ?? [], members ?? []),
     [certSimsQ.data, members],
   )
   const { data: objStats } = useObjections()
+  const topStatsQ = useTopStats()
 
   const [messages,      setMessages]      = useState<Message[]>([])
   const [input,         setInput]         = useState('')
@@ -275,11 +276,77 @@ export function AIAssistant() {
   // ── Build dashboard context (null-safe) ───────
 
   function buildContext(): string {
-    const lang = language === 'es' ? 'Spanish' : 'English'
-    let ctx = `[Current page: ${pageName}]\n[Language: ${lang}]\n\n`
+    const lang   = language === 'es' ? 'Spanish' : 'English'
+    const path   = location.pathname
+    let ctx = `[Current page: ${pageName}]\n[Language: ${lang}]\n`
+    ctx += `[Active date filter: ${dateFrom ?? 'default'} → ${dateTo ?? 'default'}]\n\n`
 
     if (kpis && !dashLoading) {
-      ctx += buildAIContext(kpis, sims, activities, actStats ?? [], userStats ?? [], objStats ?? [], certSummary)
+      let pageBlock = ''
+
+      if (path === '/certification' && certSummary) {
+        const lines       = certSummary.byLine
+        const totalMem    = lines.reduce((s, l) => s + l.memberCount, 0)
+        const certPct     = totalMem > 0 ? Math.round(certSummary.totalCertified / totalMem * 100) : 0
+        const incomplete  = lines.filter((l) => l.certifiedCount < l.memberCount)
+        pageBlock =
+          `CERTIFICATION PAGE — currently visible:\n` +
+          `Certified: ${certSummary.totalCertified}/${totalMem} members (${certPct}%)  |  Official platform: 157\n` +
+          `4-person gap vs official: 3 people lack a required sim ≥80 in the window (pre-window or never reached 80); 1 timing issue.\n` +
+          `\nAll 15 líneas:\n` +
+          lines.map((l) => {
+            const pct  = l.memberCount > 0 ? Math.round(l.certifiedCount / l.memberCount * 100) : 0
+            const flag = l.certifiedCount === 0 ? ' [NO CERTS]' : l.certifiedCount < l.memberCount ? ' [incomplete]' : ' [complete]'
+            return `  ${l.name} (${l.jefe}): ${l.certifiedCount}/${l.memberCount} = ${pct}%${flag}`
+          }).join('\n') +
+          `\nLines not yet 100%: ${incomplete.map((l) => l.name).join(', ') || 'none'}`
+      }
+
+      if (path === '/leaderboard') {
+        const all  = userStats ?? []
+        const top25 = all.slice(0, 25)
+        pageBlock =
+          `LEADERBOARD PAGE — currently visible:\n` +
+          `Total advisors ranked: ${all.length}\n` +
+          `Top 25 (current period, sorted by avg score):\n` +
+          top25.map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%, pass ${u.passRate}%`).join('\n')
+        const ts = topStatsQ.data?.stats
+        if (ts) {
+          pageBlock +=
+            `\n\nAll-time KPI cards at top of page:\n` +
+            `  Total Records: ${ts.total_records.toLocaleString()}\n` +
+            `  Avg Best Score: ${ts.avg_best_score}%\n` +
+            `  Records ≥80%: ${ts.records_ge80.toLocaleString()} (${Math.round(ts.records_ge80 / ts.total_records * 100)}%)\n` +
+            `  Active Advisors: ${ts.unique_users}  |  Distinct Simulators: ${ts.unique_sims}`
+        }
+      }
+
+      if (path === '/simulations') {
+        const dist = scoreDist ?? []
+        pageBlock =
+          `SIMULATIONS PAGE — currently visible:\n` +
+          `Total sessions in view: ${sims.length}\n` +
+          `Score distribution:\n` +
+          dist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')
+      }
+
+      if (path === '/activities') {
+        pageBlock =
+          `ACTIVITIES PAGE — currently visible:\n` +
+          (actStats ?? []).map((a) => `  ${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('\n')
+      }
+
+      if (path === '/') {
+        const dist = scoreDist ?? []
+        pageBlock =
+          `OVERVIEW PAGE — score distribution:\n` +
+          dist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')
+      }
+
+      ctx += buildAIContext(
+        kpis, sims, activities, actStats ?? [], userStats ?? [], objStats ?? [], certSummary,
+        { dateFrom, dateTo, scoreDist: scoreDist ?? [], pageBlock: pageBlock || undefined },
+      )
     } else {
       ctx +=
         'DASHBOARD DATA: Currently loading or unavailable.\n' +
