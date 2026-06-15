@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
 // Restores the previous session's API responses so the dashboard feels instant
 // on every page load after the first. Fresh data fetches in the background.
 // v5: DATA_EPOCH changed to 2026-06-01; objections query added
-const CACHE_KEY = 'sanfer-qc-v7'
+const CACHE_KEY = 'sanfer-qc-v8'
 
 function restoreCache() {
   try {
