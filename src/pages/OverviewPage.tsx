@@ -3,16 +3,18 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver'
 import {
   computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution, normalizeName,
+  computeCertSummary,
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { CERT_TOTAL_SLOTS } from '../lib/certification'
+import { CERT_TOTAL_SLOTS, CERT_WINDOW } from '../lib/certification'
+import { useSimulations } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
 import {
   BarChart3, PlayCircle, CheckCircle2, Users, Download,
-  Search, ChevronDown, X, BookOpen, UserCheck,
+  Search, ChevronDown, X, BookOpen, UserCheck, GraduationCap,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -82,6 +84,20 @@ export default function OverviewPage() {
     sims, activities, members, admins,
     refetch,
   } = useDashboardData()
+
+  // Cert % — uses the fixed CERT_WINDOW dates (independent of global date filter).
+  // TanStack Query shares this cache with CertificationPage when both are open.
+  const certSimsQ    = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
+  const certSummary  = useMemo(
+    () => certSimsQ.data && members.length
+      ? computeCertSummary(certSimsQ.data, members)
+      : null,
+    [certSimsQ.data, members],
+  )
+  const certPct = useMemo(() => {
+    if (!certSummary || !kpis?.totalMembers) return null
+    return Math.round((certSummary.totalCertified / kpis.totalMembers) * 100)
+  }, [certSummary, kpis?.totalMembers])
 
   // Skeleton only while sims are loading — activities are cached 24 h and arrive
   // almost immediately on any warm session.
@@ -302,15 +318,16 @@ export default function OverviewPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
-        <KpiCard icon={PlayCircle}   label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
-        <KpiCard icon={BarChart3}    label={t('kpi_avg_score')}          value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet"  />
-        <KpiCard icon={CheckCircle2} label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
-        <KpiCard icon={Users}        label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
+      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-4">
+        <KpiCard icon={PlayCircle}      label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
+        <KpiCard icon={BarChart3}       label={t('kpi_avg_score')}          value={`${activeKpis!.averageScore}%`} sub={t('sub_overall')}           color="violet"  />
+        <KpiCard icon={CheckCircle2}    label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
+        <KpiCard icon={Users}           label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
+        <KpiCard icon={GraduationCap}   label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')} color="pass"   />
         {/* Business count is 45 assignment slots (Excel "Ejercicios totales"):
             exercise #420 is assigned to two líneas, so unique simulators = 44 */}
-        <KpiCard icon={BookOpen}     label={t('kpi_total_activities')}   value={CERT_TOTAL_SLOTS}               sub={t('sub_cert_slots')}        color="accent"  />
-        <KpiCard icon={UserCheck}    label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}      sub={t('sub_registered')}        color="violet"  />
+        <KpiCard icon={BookOpen}        label={t('kpi_total_activities')}   value={CERT_TOTAL_SLOTS}               sub={t('sub_cert_slots')}        color="accent"  />
+        <KpiCard icon={UserCheck}       label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}      sub={t('sub_registered')}        color="violet"  />
       </div>
 
       {/* Charts */}

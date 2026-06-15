@@ -27,6 +27,7 @@ const t = {
     kpi_total_members: 'Total Participantes',
     kpi_total_admins: 'Administradores',
     kpi_total_supervisors: 'Supervisores',
+    kpi_cert_pct: '% Certificación',
 
     // Sub-labels
     sub_across_activities: 'en todas las actividades',
@@ -37,6 +38,7 @@ const t = {
     sub_registered: 'registrados',
     sub_active: 'activos',
     sub_cert_slots: '15 líneas × 3 simuladores',
+    sub_cert_pct: 'asesores certificados',
 
     // Charts / Sections
     score_trend: 'Tendencia de Puntaje',
@@ -304,6 +306,7 @@ const t = {
     kpi_total_members: 'Total Members',
     kpi_total_admins: 'Administrators',
     kpi_total_supervisors: 'Supervisors',
+    kpi_cert_pct: '% Certification',
 
     sub_across_activities: 'across all activities',
     sub_overall: 'across all sessions',
@@ -313,6 +316,7 @@ const t = {
     sub_registered: 'registered',
     sub_active: 'active',
     sub_cert_slots: '15 lines × 3 simulators',
+    sub_cert_pct: 'advisors certified',
 
     score_trend: 'Score Trend',
     pass_fail_dist: 'Pass / Fail Distribution',
