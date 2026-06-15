@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Send, Sparkles, Bot, User, Trash2, ImagePlus, XCircle, AlertCircle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -6,8 +6,9 @@ import { useLocation } from 'react-router-dom'
 import { useAppStore } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { useDashboardData } from '../../hooks/useDashboardData'
-import { buildAIContext } from '../../lib/analytics'
-import { useObjections } from '../../api/queries'
+import { buildAIContext, computeCertSummary } from '../../lib/analytics'
+import { useObjections, useSimulations } from '../../api/queries'
+import { CERT_WINDOW } from '../../lib/certification'
 
 // ─────────────────────────────────────────────
 // Constants
@@ -197,7 +198,12 @@ export function AIAssistant() {
   const location = useLocation()
 
   // Dashboard data — used for context, but AI works even if unavailable
-  const { kpis, sims, activities, actStats, userStats, isLoading: dashLoading } = useDashboardData()
+  const { kpis, sims, activities, actStats, userStats, members, isLoading: dashLoading } = useDashboardData()
+  const certSimsQ  = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
+  const certSummary = useMemo(
+    () => computeCertSummary(certSimsQ.data ?? [], members ?? []),
+    [certSimsQ.data, members],
+  )
   const { data: objStats } = useObjections()
 
   const [messages,      setMessages]      = useState<Message[]>([])
@@ -273,7 +279,7 @@ export function AIAssistant() {
     let ctx = `[Current page: ${pageName}]\n[Language: ${lang}]\n\n`
 
     if (kpis && !dashLoading) {
-      ctx += buildAIContext(kpis, sims, activities, actStats ?? [], userStats ?? [], objStats ?? [])
+      ctx += buildAIContext(kpis, sims, activities, actStats ?? [], userStats ?? [], objStats ?? [], certSummary)
     } else {
       ctx +=
         'DASHBOARD DATA: Currently loading or unavailable.\n' +

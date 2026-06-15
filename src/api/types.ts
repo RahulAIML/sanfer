@@ -166,3 +166,28 @@ export interface ObjectionsResponse {
   data: ObjectionStat[]
   total_records: number
 }
+
+// ─────────────────────────────────────────────
+// Top simulator all-time stats (bridge action=sim.topstats)
+// ─────────────────────────────────────────────
+export interface TopStatsUser {
+  email:     string
+  nombre:    string
+  avg_best:  number
+  sims_done: number
+  sims_ge80: number
+}
+
+export interface TopStatsAggregate {
+  total_records:  number
+  avg_best_score: number
+  records_ge80:   number
+  unique_sims:    number
+  unique_users:   number
+}
+
+export interface TopStatsResponse {
+  ok:        boolean
+  stats:     TopStatsAggregate
+  top_users: TopStatsUser[]
+}

@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react'
-import { useSimulations, useActivities, useMembers, useAdmins } from '../api/queries'
+import { useSimulations, useActivities, useMembers, useAdmins, useMembersRawCount } from '../api/queries'
 import { useAppStore } from '../store'
 import {
   computeQuickKPIs,
@@ -21,10 +21,11 @@ export function useDashboardData() {
   const dateTo   = useAppStore((s) => s.dateTo)
 
   // Use hooks from queries.ts so stale times are configured in one place
-  const activitiesQ = useActivities()
-  const simsQ       = useSimulations(dateFrom, dateTo)
-  const membersQ    = useMembers()
-  const adminsQ     = useAdmins()
+  const activitiesQ      = useActivities()
+  const simsQ            = useSimulations(dateFrom, dateTo)
+  const membersQ         = useMembers()
+  const adminsQ          = useAdmins()
+  const rawMemberCount   = useMembersRawCount()
 
   // Fine-grained loading flags so pages can render as soon as their data arrives
   const simsLoading = simsQ.isLoading
@@ -65,8 +66,8 @@ export function useDashboardData() {
   // start at 0 and update when org queries finish — pages that need org counts
   // guard on orgLoading separately.
   const kpis = useMemo(
-    () => (simsLoading || activitiesLoading || isError ? null : computeKPIs(sims, activities, members, admins)),
-    [simsLoading, activitiesLoading, isError, sims, activities, members, admins],
+    () => (simsLoading || activitiesLoading || isError ? null : computeKPIs(sims, activities, members, admins, rawMemberCount || undefined)),
+    [simsLoading, activitiesLoading, isError, sims, activities, members, admins, rawMemberCount],
   )
   const trend = useMemo(
     () => (simsLoading || isError ? null : computeTrend(sims)),

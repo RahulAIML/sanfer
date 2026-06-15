@@ -6,6 +6,7 @@ import type {
   ObjectionsResponse,
   Simulation,
   SimReport,
+  TopStatsResponse,
 } from './types'
 import { inDateWindow, resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -116,7 +117,13 @@ export async function fetchMembers(signal?: AbortSignal): Promise<MembersRespons
       mb_fullname:    decodeEntities(m.mb_fullname),
       mb_designation: decodeEntities(m.mb_designation),
     }))
-  return { ...resp, data, count: data.length }
+  // Preserve resp.count (raw API total incl. test accounts) for the "Total Representatives"
+  // KPI to match what the official platform reports. data is still filtered for analytics.
+  return { ...resp, data, count: resp.count ?? data.length }
+}
+
+export async function fetchTopStats(signal?: AbortSignal): Promise<TopStatsResponse> {
+  return fetchJSON<TopStatsResponse>(`${BRIDGE_BASE}/?action=sim.topstats`, signal)
 }
 
 // 'dev' profiles are platform tooling accounts ("Administrador Dev"), not part

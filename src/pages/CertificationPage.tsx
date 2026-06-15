@@ -96,7 +96,7 @@ export default function CertificationPage() {
       // 3 of this line's sims — exercise-based, so roster gaps can't hide them.
       const certified: CertifiedAdvisor[] = []
       for (const [email, mine] of bestScore) {
-        if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) > CERT_SCORE_BAR)) {
+        if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) >= CERT_SCORE_BAR)) {
           certified.push({
             email,
             name:   advisorName.get(email) ?? email,

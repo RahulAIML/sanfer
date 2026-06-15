@@ -146,6 +146,7 @@ export function computeKPIs(
   activities: Activity[],
   members: Member[],
   admins: Administrator[],
+  rawMemberCount?: number,
 ): DashboardKPIs {
   const passCount = sims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
   const advisors  = new Set(sims.map((s) => s.Usuario_Nombre).filter(Boolean))
@@ -166,8 +167,8 @@ export function computeKPIs(
     passRate:         pct(passCount, sims.length),
     activeAdvisors:   advisors.size,
     totalActivities:  activities.length,
-    // Prefer the count field from the API response when available
-    totalMembers:     members.length,
+    // rawMemberCount = full API count (incl. test accounts); matches official platform total
+    totalMembers:     rawMemberCount ?? members.length,
     totalAdmins:      admins.filter((a) => a.rpa_profile_type === 'admin').length,
     totalSupervisors: admins.filter((a) => a.rpa_profile_type === 'supervisor').length,
     bestScore,
@@ -513,6 +514,62 @@ export function computeLineStats(
 }
 
 // ─────────────────────────────────────────────
+// Certification summary (for AI context)
+// ─────────────────────────────────────────────
+
+export interface CertLineSummary {
+  name:           string
+  jefe:           string
+  certifiedCount: number
+  memberCount:    number
+}
+
+export interface CertSummary {
+  totalCertified: number
+  byLine:         CertLineSummary[]
+}
+
+// Must match CERT_SCORE_BAR in CertificationPage.tsx (score >= 80 on all 3 assigned sims)
+const CERT_SCORE_BAR = 80
+
+export function computeCertSummary(certSims: Simulation[], members: Member[]): CertSummary {
+  const membersByLine = new Map<number, Set<string>>()
+  for (const m of members) {
+    if (m.mb_status !== 1 || !m.mb_idTag1 || !m.mb_user) continue
+    const email = m.mb_user.toLowerCase()
+    if (email.includes('rolplay')) continue
+    if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, new Set())
+    membersByLine.get(m.mb_idTag1)!.add(email)
+  }
+
+  const bestScore = new Map<string, Map<number, number>>()
+  for (const s of certSims) {
+    const email = (s.Usuario ?? '').toLowerCase()
+    if (!email) continue
+    if (!bestScore.has(email)) bestScore.set(email, new Map())
+    const mine = bestScore.get(email)!
+    mine.set(s.ID_Caso_de_Uso, Math.max(mine.get(s.ID_Caso_de_Uso) ?? 0, s.Calificacion))
+  }
+
+  const seen = new Set<string>()
+  let totalCertified = 0
+
+  const byLine = CERT_LINES.map((line) => {
+    const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
+    let certifiedCount = 0
+    for (const [email, mine] of bestScore) {
+      if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) >= CERT_SCORE_BAR)) {
+        certifiedCount++
+        if (!seen.has(email)) { seen.add(email); totalCertified++ }
+      }
+    }
+    return { name: line.name, jefe: line.jefe, certifiedCount, memberCount: lineMembers.size }
+  })
+
+  return { totalCertified, byLine }
+}
+
+// ─────────────────────────────────────────────
 // AI Context String (for Gemini)
 // ─────────────────────────────────────────────
 
@@ -523,6 +580,7 @@ export function buildAIContext(
   actStats: ActivityStat[],
   userStats: UserStat[],
   objections: import('../api/types').ObjectionStat[] = [],
+  certSummary?: CertSummary,
 ): string {
   const topUsers = userStats.slice(0, 5).map((u) => `${u.name} (${u.avgScore}%)`).join(', ')
   const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
@@ -531,6 +589,24 @@ export function buildAIContext(
   const actNames = activities.slice(0, 20).map((a) => a.Caso_de_Uso).join(', ')
   const worst5   = objections.slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
   const best5    = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — asked ${o.count}x, ${o.pass_rate}% success`).join('\n')
+
+  const certBlock = certSummary
+    ? `
+CERTIFICATION ("Certificación Sanfer — Junio 2026"):
+Window: 2026-06-08 to 2026-06-22 | Rule: score >=80% on ALL 3 assigned simulators (best attempt per sim)
+Total Certified Advisors: ${certSummary.totalCertified}
+
+By team (línea) — format: "TeamName (Jefe): N certified / M members":
+${certSummary.byLine.map((l) => `  ${l.name} (${l.jefe}): ${l.certifiedCount} certified / ${l.memberCount} members`).join('\n')}
+
+By training manager (jefe):
+${Object.entries(
+  certSummary.byLine.reduce<Record<string, number>>((acc, l) => {
+    acc[l.jefe] = (acc[l.jefe] ?? 0) + l.certifiedCount
+    return acc
+  }, {}),
+).map(([jefe, n]) => `  ${jefe}: ${n} certified`).join('\n')}`
+    : ''
 
   return `
 SANFER SALES TRAINING INTELLIGENCE PLATFORM — LIVE DASHBOARD DATA
@@ -555,7 +631,7 @@ Recent Simulations (last 5):
 ${recent}
 
 Activities Available (sample): ${actNames}
-
+${certBlock}
 OBJECTION HANDLING ("Manejo de Objeciones"):
 Definition — Success Rate = % of sessions where the rep scored full points on that specific doctor objection.
 Total unique objections tracked: ${objections.length}

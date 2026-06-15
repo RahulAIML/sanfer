@@ -1,5 +1,6 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations } from './client'
+import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
+import type { MembersResponse } from './types'
 import { resolveEffectiveDates } from '../lib/dateUtils'
 
 // ─────────────────────────────────────────────
@@ -68,6 +69,22 @@ export function useMembers() {
   })
 }
 
+/**
+ * Raw member count from the API (including internal test accounts) — same cache
+ * entry as useMembers(), just a different selector. Used for the "Total
+ * Representatives" KPI to match what the official platform reports.
+ */
+export function useMembersRawCount(): number {
+  return (
+    useQuery<MembersResponse>({
+      queryKey:  ['members'],
+      queryFn:   ({ signal }) => fetchMembers(signal),
+      staleTime: STALE.org,
+      gcTime:    GC.org,
+    }).data?.count ?? 0
+  )
+}
+
 /** Administrator list — org structure changes infrequently */
 export function useAdmins() {
   return useQuery({
@@ -118,6 +135,16 @@ export function useObjections(dateFrom: string | null = null, dateTo: string | n
     gcTime:          GC.simulations,
     placeholderData: keepPreviousData,
     select:          (res) => res.data,
+  })
+}
+
+/** All-time top simulator stats — cached 2 h, barely changes */
+export function useTopStats() {
+  return useQuery({
+    queryKey:  ['topStats'],
+    queryFn:   ({ signal }) => fetchTopStats(signal),
+    staleTime: STALE.org,
+    gcTime:    GC.org,
   })
 }
 

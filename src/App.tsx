@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/layout/Shell'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { ChartSkeleton } from './components/ui/Skeleton'
-import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins } from './api/client'
+import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins, fetchObjections } from './api/client'
 import { resolveEffectiveDates } from './lib/dateUtils'
 import OverviewPage from './pages/OverviewPage'
 
@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
 // Restores the previous session's API responses so the dashboard feels instant
 // on every page load after the first. Fresh data fetches in the background.
 // v5: DATA_EPOCH changed to 2026-06-01; objections query added
-const CACHE_KEY = 'sanfer-qc-v5'
+const CACHE_KEY = 'sanfer-qc-v6'
 
 function restoreCache() {
   try {
@@ -94,6 +94,27 @@ queryClient.prefetchQuery({ queryKey: ['simulations', defFrom, defTo], queryFn: 
 queryClient.prefetchQuery({ queryKey: ['activities'],  queryFn: ({ signal }) => fetchActivities(signal),             staleTime: STALE })
 queryClient.prefetchQuery({ queryKey: ['members'],     queryFn: ({ signal }) => fetchMembers(signal),                staleTime: STALE })
 queryClient.prefetchQuery({ queryKey: ['admins'],      queryFn: ({ signal }) => fetchAdmins(signal),                 staleTime: STALE })
+queryClient.prefetchQuery({ queryKey: ['objections', defFrom, defTo], queryFn: ({ signal }) => fetchObjections(defFrom, defTo, signal), staleTime: STALE })
+
+// Preload all lazy page chunks during browser idle time so navigations are instant.
+// Data is already in-flight above; this races the chunk download against that.
+const _preloadChunks = () => {
+  import('./pages/SimulationsPage')
+  import('./pages/CertificationPage')
+  import('./pages/ConversationalPage')
+  import('./pages/LeaderboardPage')
+  import('./pages/ActivitiesPage')
+  import('./pages/OrganizationPage')
+  import('./pages/CoachingPage')
+  import('./pages/BusinessLinesPage')
+  import('./pages/ReportsPage')
+  import('./pages/SettingsPage')
+}
+if ('requestIdleCallback' in window) {
+  window.requestIdleCallback(_preloadChunks, { timeout: 3000 })
+} else {
+  setTimeout(_preloadChunks, 1000)
+}
 
 function PageFallback() {
   return (
