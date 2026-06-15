@@ -156,15 +156,14 @@ export default function CertificationPage() {
     <div className="space-y-6">
       {/* Header */}
       {(() => {
-        const today      = new Date().toISOString().slice(0, 10)
-        const isClosed   = today > CERT_WINDOW.to
+        const isClosed   = false  // no end-date cap — window stays open
         const fmt = (iso: string) => {
           const d = new Date(iso + 'T12:00:00')
           return es
             ? `${d.getDate()} ${d.toLocaleString('es-MX', { month: 'short' })} ${d.getFullYear()}`
             : `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}, ${d.getFullYear()}`
         }
-        const rangeLabel = `${fmt(CERT_WINDOW.from)} – ${fmt(CERT_WINDOW.to)}`
+        const rangeLabel = `${fmt(CERT_WINDOW.from)} – ${es ? 'presente' : 'present'}`
         return (
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>

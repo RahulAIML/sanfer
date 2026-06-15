@@ -21,7 +21,8 @@ export interface CertLine {
   sims: [CertSim, CertSim, CertSim]
 }
 
-export const CERT_WINDOW = { from: '2026-06-08', to: '2026-06-22' } as const
+// from: programme launch date; to: null = resolveEffectiveDates defaults to today
+export const CERT_WINDOW = { from: '2026-06-01', to: null as null } as const
 export const CERT_TITLE  = 'Certificación Sanfer — Junio 2026'
 export const CERT_TOTAL_SLOTS = 45   // 15 líneas × 3 simuladores (ID 420 shared by 2 líneas → 44 unique)
 // Certification rule: completion-only (CTO confirmed).
