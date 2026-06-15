@@ -3,6 +3,7 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation, type TKey } from '../lib/i18n'
 import { useDebounce } from '../lib/useDebounce'
+import { matchesSearch } from '../lib/searchUtils'
 import { PASS_THRESHOLD } from '../lib/analytics'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { SimReportModal } from '../components/ui/SimReportModal'
@@ -46,15 +47,15 @@ export default function SimulationsPage() {
   )
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return sims
-    const tokens = q.split(/\s+/).filter(Boolean)
-    return sims.filter((s) => {
-      const name     = (s.Usuario_Nombre ?? '').toLowerCase()
-      const activity = (actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso ?? '').toLowerCase()
-      const date     = s.Fecha_y_Hora
-      return tokens.every((tok) => name.includes(tok) || activity.includes(tok) || date.includes(tok))
-    })
+    if (!search.trim()) return sims
+    return sims.filter((s) =>
+      matchesSearch(
+        search,
+        s.Usuario_Nombre,
+        actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso,
+        s.Fecha_y_Hora,
+      )
+    )
   }, [sims, search, actMap])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))

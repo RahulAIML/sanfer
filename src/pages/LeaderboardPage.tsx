@@ -4,6 +4,7 @@ import { useTopStats } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { useDebounce } from '../lib/useDebounce'
+import { matchesSearch } from '../lib/searchUtils'
 import { Trophy, Medal, TrendingUp, TrendingDown, Search, X, ChevronLeft, ChevronRight, BarChart3, Users, Star, Activity } from 'lucide-react'
 
 const PAGE_SIZE = 25
@@ -24,8 +25,7 @@ export default function LeaderboardPage() {
   const rows = useMemo(() => {
     let result = allRows
     if (search.trim()) {
-      const q = search.toLowerCase()
-      result = result.filter((u) => u.name.toLowerCase().includes(q))
+      result = result.filter((u) => matchesSearch(search, u.name))
     }
     return limitN > 0 ? result.slice(0, limitN) : result
   }, [allRows, search, limitN])

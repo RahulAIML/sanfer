@@ -9,6 +9,7 @@ import { useTranslation } from '../lib/i18n'
 import { CERT_TOTAL_SLOTS } from '../lib/certification'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
+import { matchesSearch } from '../lib/searchUtils'
 import {
   BarChart3, PlayCircle, CheckCircle2, Users, Download,
   Search, ChevronDown, X, BookOpen, UserCheck,
@@ -110,7 +111,7 @@ export default function OverviewPage() {
   )
   const filteredUserNames = useMemo(
     () => userSearch.trim()
-      ? allUserNames.filter((n) => n.toLowerCase().includes(userSearch.toLowerCase()))
+      ? allUserNames.filter((n) => matchesSearch(userSearch, n))
       : allUserNames,
     [allUserNames, userSearch],
   )
