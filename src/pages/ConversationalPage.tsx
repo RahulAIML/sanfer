@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo, useState, Fragment } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
@@ -7,7 +7,7 @@ import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
-import { MessageSquare, BarChart2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity, Target, ArrowUpDown } from 'lucide-react'
+import { MessageSquare, BarChart2, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Activity, Target, ArrowUpDown, ChevronDown, ChevronUp, Lightbulb, Users } from 'lucide-react'
 import { useChartColors } from '../lib/chartTheme'
 import { TooltipShell, TRow, TTitle, useTooltipColors, type TooltipColors } from '../components/charts/TooltipShell'
 import type { ActivityStat } from '../lib/analytics'
@@ -192,7 +192,8 @@ export default function ConversationalPage() {
   const objQ = useObjections(dateFrom, dateTo)
   const isLoading = simsLoading || activitiesLoading
 
-  const [objSortAsc, setObjSortAsc] = useState(true)  // true = worst first (ascending pass_rate)
+  const [objSortAsc,    setObjSortAsc]    = useState(true)
+  const [expandedObjKey, setExpandedObjKey] = useState<string | null>(null)
 
   // ── ALL hooks BEFORE any conditional return (Rules of Hooks) ─────────────────
   const stats    = roundStats ?? []
@@ -454,6 +455,11 @@ export default function ConversationalPage() {
 
           {objQ.isLoading ? (
             <div className="card p-5 h-48 skeleton rounded-xl" />
+          ) : objQ.isError ? (
+            <div className="card p-5 flex items-center gap-3 text-slate-400 text-sm">
+              <AlertTriangle className="w-4 h-4 text-yellow-400 shrink-0" />
+              {es ? 'No se pudieron cargar las objeciones.' : 'Could not load objections.'}
+            </div>
           ) : (
             <div className="card p-5">
               <div className="overflow-x-auto">
@@ -477,33 +483,84 @@ export default function ConversationalPage() {
                   </thead>
                   <tbody className="divide-y divide-line/20">
                     {objStats.map((obj, idx) => {
-                      const rate = obj.pass_rate
-                      const color = rate >= 70 ? 'text-success' : rate >= 40 ? 'text-yellow-400' : 'text-danger'
+                      const rate    = obj.pass_rate
+                      const color   = rate >= 70 ? 'text-success' : rate >= 40 ? 'text-yellow-400' : 'text-danger'
                       const barColor = rate >= 70 ? 'bg-success' : rate >= 40 ? 'bg-yellow-400' : 'bg-danger'
-                      const simName = actNameById.get(obj.usecase_id) ?? `#${obj.usecase_id}`
+                      const simName  = actNameById.get(obj.usecase_id) ?? `#${obj.usecase_id}`
+                      const rowKey   = `${obj.usecase_id}|${obj.objection_text}`
+                      const expanded = expandedObjKey === rowKey
+                      const hasDetail = !!(obj.model_answer || obj.top_answers?.length)
                       return (
-                        <tr key={`${obj.usecase_id}|${obj.objection_text}`} className="hover:bg-white/[0.015] transition-colors">
-                          <td className="py-2.5 pr-3 text-slate-600 text-[11px] tabular-nums">{idx + 1}</td>
-                          <td className="py-2.5 pr-4 text-slate-300 text-[12px] max-w-[280px]">
-                            <span className="line-clamp-2 leading-snug">{obj.objection_text}</span>
-                          </td>
-                          <td className="py-2.5 pr-4 text-slate-500 text-[11px] max-w-[160px]">
-                            <span className="line-clamp-1">{simName}</span>
-                          </td>
-                          <td className="py-2.5 pr-4 text-slate-400 text-right tabular-nums text-[12px]">
-                            {obj.count}
-                          </td>
-                          <td className="py-2.5 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <div className="w-20 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
-                                <div className={`h-full rounded-full ${barColor}`} style={{ width: `${rate}%` }} />
+                        <Fragment key={rowKey}>
+                          <tr
+                            onClick={() => hasDetail && setExpandedObjKey(expanded ? null : rowKey)}
+                            className={`transition-colors ${hasDetail ? 'cursor-pointer hover:bg-white/[0.025]' : ''}`}
+                          >
+                            <td className="py-2.5 pr-3 text-slate-600 text-[11px] tabular-nums">{idx + 1}</td>
+                            <td className="py-2.5 pr-4 text-slate-300 text-[12px] max-w-[280px]">
+                              <span className="leading-snug">{obj.objection_text}</span>
+                            </td>
+                            <td className="py-2.5 pr-4 text-slate-500 text-[11px] max-w-[160px]">
+                              <span className="line-clamp-1">{simName}</span>
+                            </td>
+                            <td className="py-2.5 pr-4 text-slate-400 text-right tabular-nums text-[12px]">
+                              {obj.count}
+                            </td>
+                            <td className="py-2.5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <div className="w-20 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+                                  <div className={`h-full rounded-full ${barColor}`} style={{ width: `${rate}%` }} />
+                                </div>
+                                <span className={`tabular-nums text-[12px] font-semibold w-9 text-right ${color}`}>
+                                  {rate}%
+                                </span>
+                                {hasDetail && (
+                                  expanded
+                                    ? <ChevronUp className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                                    : <ChevronDown className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                                )}
                               </div>
-                              <span className={`tabular-nums text-[12px] font-semibold w-9 text-right ${color}`}>
-                                {rate}%
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr>
+                              <td colSpan={5} className="pb-3 pt-1 px-1">
+                                <div className="bg-surface/60 border border-line/30 rounded-xl p-4 space-y-3">
+                                  {obj.model_answer && (
+                                    <div>
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <Lightbulb className="w-3.5 h-3.5 text-accent" />
+                                        <span className="text-[11px] font-semibold text-accent uppercase tracking-wider">
+                                          {es ? 'Respuesta Modelo' : 'Model Answer'}
+                                        </span>
+                                      </div>
+                                      <p className="text-[12px] text-slate-200 leading-relaxed whitespace-pre-line">
+                                        {obj.model_answer}
+                                      </p>
+                                    </div>
+                                  )}
+                                  {obj.top_answers && obj.top_answers.length > 0 && (
+                                    <div>
+                                      <div className="flex items-center gap-1.5 mb-1.5">
+                                        <Users className="w-3.5 h-3.5 text-slate-500" />
+                                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                                          {es ? 'Respuestas de Asesores' : 'Rep Responses'}
+                                        </span>
+                                      </div>
+                                      <div className="space-y-1.5">
+                                        {obj.top_answers.map((ans, i) => (
+                                          <p key={i} className="text-[11px] text-slate-400 bg-white/[0.03] rounded-lg px-3 py-2 leading-relaxed">
+                                            "{ans}"
+                                          </p>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       )
                     })}
                   </tbody>
@@ -512,8 +569,8 @@ export default function ConversationalPage() {
               {objStats.length > 0 && (
                 <p className="text-[10px] text-slate-600 mt-3">
                   {es
-                    ? `${objStats.length} objeciones únicas · Las tasas de éxito bajas indican donde enfocar el coaching`
-                    : `${objStats.length} unique objections · Low success rates indicate where to focus coaching`}
+                    ? `${objStats.length} objeciones únicas · Haz clic en una fila para ver la respuesta modelo`
+                    : `${objStats.length} unique objections · Click a row to see the model answer`}
                 </p>
               )}
             </div>

@@ -182,7 +182,7 @@ export default function SimulationsPage() {
                       <td className="px-4 py-3 text-slate-400 max-w-[200px]">
                         <span className="truncate block">{activity?.Caso_de_Uso ?? `ID ${s.ID_Caso_de_Uso}`}</span>
                       </td>
-                      <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{s.Fecha_y_Hora.slice(0, 10)}</td>
+                      <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">{s.Fecha_y_Hora?.slice(0, 10) ?? '—'}</td>
                       <td className="px-4 py-3">
                         <span className={cn('font-semibold', s.Calificacion >= PASS_THRESHOLD ? 'text-success' : 'text-danger')}>
                           {s.Calificacion}%

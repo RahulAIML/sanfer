@@ -48,6 +48,21 @@ export default function ActivitiesPage() {
     )
   }
 
+  if (!actStats || actStats.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-50 tracking-tight">{t('page_act_title')}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{t('page_act_subtitle')}</p>
+        </div>
+        <div className="card p-10 flex flex-col items-center gap-3">
+          <Activity className="w-12 h-12 text-slate-600" />
+          <p className="text-slate-400 text-sm">{t('no_data')}</p>
+        </div>
+      </div>
+    )
+  }
+
   const data = (actStats ?? []).map((a, i) => ({
     name: a.name.length > 20 ? a.name.slice(0, 20) + '...' : a.name,
     fullName: a.name,

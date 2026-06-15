@@ -156,9 +156,11 @@ export interface LinesResponse {
 export interface ObjectionStat {
   usecase_id: number
   objection_text: string
-  count: number       // sessions where this objection appeared
-  pass_count: number  // sessions where rep scored 1 on it
-  pass_rate: number   // pass_count / scored × 100 (rounded int)
+  count: number         // sessions where this objection appeared
+  pass_count: number    // sessions where rep scored 1 on it
+  pass_rate: number     // pass_count / scored × 100 (rounded int)
+  model_answer?: string // ideal response extracted from retroPrompt
+  top_answers?: string[] // up to 3 diverse real rep responses
 }
 
 export interface ObjectionsResponse {

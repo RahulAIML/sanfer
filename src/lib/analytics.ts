@@ -604,7 +604,10 @@ export function buildAIContext(
     ? `\nScore Distribution:\n${scoreDist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')}`
     : ''
 
-  const worst5 = objections.slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success`).join('\n')
+  const worst5 = objections.slice(0, 5).map((o, i) => {
+    const modelLine = o.model_answer ? `\n     Model answer: "${o.model_answer.slice(0, 200)}"` : ''
+    return `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success${modelLine}`
+  }).join('\n')
   const best5  = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success`).join('\n')
 
   const certBlock = certSummary ? `
