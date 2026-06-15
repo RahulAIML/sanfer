@@ -38,7 +38,10 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
     const past = new Date()
     if (p.months) past.setMonth(past.getMonth() - p.months)
     else if (p.days) past.setDate(past.getDate() - p.days)
-    onApply(past.toISOString().slice(0, 10), today)
+    // never go before programme start
+    const floor = new Date(DATA_EPOCH)
+    const effective = past < floor ? floor : past
+    onApply(effective.toISOString().slice(0, 10), today)
   }
 
   const inputCls = cn(
@@ -67,9 +70,9 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
       ))}
 
       {/* Custom date inputs */}
-      <input type="date" value={pendingFrom} onChange={(e) => setPendingFrom(e.target.value)} className={inputCls} />
+      <input type="date" value={pendingFrom} min={DATA_EPOCH} onChange={(e) => setPendingFrom(e.target.value)} className={inputCls} />
       <span className="text-xs text-slate-600">—</span>
-      <input type="date" value={pendingTo}   onChange={(e) => setPendingTo(e.target.value)}   className={inputCls} />
+      <input type="date" value={pendingTo}   min={DATA_EPOCH} onChange={(e) => setPendingTo(e.target.value)}   className={inputCls} />
 
       {/* Aplicar — visible while pending */}
       {isPending && (
