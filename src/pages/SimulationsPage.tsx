@@ -48,11 +48,13 @@ export default function SimulationsPage() {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim()
     if (!q) return sims
-    return sims.filter((s) =>
-      (s.Usuario_Nombre ?? '').toLowerCase().includes(q) ||
-      (actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso ?? '').toLowerCase().includes(q) ||
-      s.Fecha_y_Hora.includes(q),
-    )
+    const tokens = q.split(/\s+/).filter(Boolean)
+    return sims.filter((s) => {
+      const name     = (s.Usuario_Nombre ?? '').toLowerCase()
+      const activity = (actMap.get(s.ID_Caso_de_Uso)?.Caso_de_Uso ?? '').toLowerCase()
+      const date     = s.Fecha_y_Hora
+      return tokens.every((tok) => name.includes(tok) || activity.includes(tok) || date.includes(tok))
+    })
   }, [sims, search, actMap])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
