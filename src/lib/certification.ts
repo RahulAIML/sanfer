@@ -24,10 +24,12 @@ export interface CertLine {
 export const CERT_WINDOW = { from: '2026-06-08', to: '2026-06-22' } as const
 export const CERT_TITLE  = 'Certificación Sanfer — Junio 2026'
 export const CERT_TOTAL_SLOTS = 45   // 15 líneas × 3 simuladores (ID 420 shared by 2 líneas → 44 unique)
-// Minimum score on each assigned simulator to be considered certified.
-// Pending CTO confirmation: official platform may use completion-only (0 = any attempt).
-// Update this constant — do NOT redefine it in individual pages.
-export const CERT_SCORE_BAR = 80
+// Certification rule: completion-only (CTO confirmed).
+// A user is certified when they have at least one session on every assigned sim,
+// regardless of score. CERT_SCORE_BAR = 0 kept for reference; the actual check
+// is mine.has(saexId) — the fallback ?? 0 >= 0 would incorrectly certify
+// users who never attempted, so the condition must be an explicit .has() call.
+export const CERT_SCORE_BAR = 0
 
 const L = 'https://improveyourpitchbeta.net/demorp6'
 

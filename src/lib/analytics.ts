@@ -550,8 +550,7 @@ export interface CertSummary {
   byLine:         CertLineSummary[]
 }
 
-// Must match CERT_SCORE_BAR in CertificationPage.tsx (score >= 80 on all 3 assigned sims)
-const CERT_SCORE_BAR = 80
+// Completion-only: certified = has attempted every assigned sim (CTO confirmed)
 
 export function computeCertSummary(certSims: Simulation[], members: Member[]): CertSummary {
   const membersByLine = new Map<number, Set<string>>()
@@ -579,7 +578,7 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
     const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
     let certifiedCount = 0
     for (const [email, mine] of bestScore) {
-      if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) >= CERT_SCORE_BAR)) {
+      if (line.sims.every((x) => mine.has(x.saexId))) {
         certifiedCount++
         if (!seen.has(email)) { seen.add(email); totalCertified++ }
       }

@@ -3,13 +3,13 @@ import { useSimulations, useMembers } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
-import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES, CERT_SCORE_BAR } from '../lib/certification'
+import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
   BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, CheckCircle2, Award,
 } from 'lucide-react'
 
-// CERT_SCORE_BAR imported from certification.ts — single source of truth
+// Completion-only: certified = has at least one session on every assigned sim
 
 interface CertifiedAdvisor {
   email: string
@@ -94,7 +94,7 @@ export default function CertificationPage() {
       // 3 of this line's sims — exercise-based, so roster gaps can't hide them.
       const certified: CertifiedAdvisor[] = []
       for (const [email, mine] of bestScore) {
-        if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) >= CERT_SCORE_BAR)) {
+        if (line.sims.every((x) => mine.has(x.saexId))) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
