@@ -6,6 +6,7 @@ import { useTranslation } from '../../lib/i18n'
 import type { Language } from '../../store'
 import type { SimRonda } from '../../api/types'
 import { cn } from '../../lib/cn'
+import { normalizeName } from '../../lib/analytics'
 
 interface Props {
   simId: number
@@ -160,7 +161,7 @@ export function SimReportModal({ simId, language, onClose }: Props) {
     const win = window.open('', '_blank', 'width=900,height=720')
     if (!win) return
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
-      <title>${product} — ${report.Usuario_Nombre}</title>
+      <title>${product} — ${normalizeName(report.Usuario_Nombre)}</title>
       <style>
         body{font-family:Arial,sans-serif;color:#111;margin:0;padding:24px;font-size:14px}
         h1{font-size:18px;margin:0 0 4px}
@@ -177,7 +178,7 @@ export function SimReportModal({ simId, language, onClose }: Props) {
         @media print{body{padding:0}}
       </style></head><body>
       <h1>${product}</h1>
-      <div class="meta">${report.Usuario_Nombre} &nbsp;·&nbsp; ${(report.Fecha_y_Hora ?? '').substring(0, 16)} &nbsp;·&nbsp; <span class="score">${score}%</span></div>
+      <div class="meta">${normalizeName(report.Usuario_Nombre)} &nbsp;·&nbsp; ${(report.Fecha_y_Hora ?? '').substring(0, 16)} &nbsp;·&nbsp; <span class="score">${score}%</span></div>
       ${rondasHtml}
     </body></html>`)
     win.document.close()
@@ -208,7 +209,7 @@ export function SimReportModal({ simId, language, onClose }: Props) {
                 {report && (
                   <div className="flex items-center gap-2 mt-1.5">
                     <p className="text-xs text-slate-500 truncate">
-                      {report.Usuario_Nombre} · {(report.Fecha_y_Hora ?? '').substring(0, 16)}
+                      {normalizeName(report.Usuario_Nombre)} · {(report.Fecha_y_Hora ?? '').substring(0, 16)}
                     </p>
                     <div className="flex items-center gap-1.5 shrink-0">
                       <div className="w-16 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">

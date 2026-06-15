@@ -4,7 +4,7 @@ import { useAppStore } from '../store'
 import { useTranslation, type TKey } from '../lib/i18n'
 import { useDebounce } from '../lib/useDebounce'
 import { matchesSearch } from '../lib/searchUtils'
-import { PASS_THRESHOLD } from '../lib/analytics'
+import { PASS_THRESHOLD, normalizeName } from '../lib/analytics'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { SimReportModal } from '../components/ui/SimReportModal'
 import {
@@ -178,7 +178,7 @@ export default function SimulationsPage() {
                       className="border-b border-line/20 hover:bg-white/[0.02] transition-colors cursor-pointer"
                       onClick={() => setExpandedId(expanded ? null : s.ID_Sim)}
                     >
-                      <td className="px-4 py-3 text-slate-200 font-medium">{s.Usuario_Nombre}</td>
+                      <td className="px-4 py-3 text-slate-200 font-medium">{normalizeName(s.Usuario_Nombre)}</td>
                       <td className="px-4 py-3 text-slate-400 max-w-[200px]">
                         <span className="truncate block">{activity?.Caso_de_Uso ?? `ID ${s.ID_Caso_de_Uso}`}</span>
                       </td>

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useSimulations, useMembers } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { filterTestUsers } from '../lib/analytics'
+import { filterTestUsers, normalizeName } from '../lib/analytics'
 import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES, CERT_SCORE_BAR } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
@@ -97,7 +97,7 @@ export default function CertificationPage() {
         if (line.sims.every((x) => (mine.get(x.saexId) ?? 0) >= CERT_SCORE_BAR)) {
           certified.push({
             email,
-            name:   advisorName.get(email) ?? email,
+            name:   normalizeName(advisorName.get(email) ?? email),
             scores: line.sims.map((x) => mine.get(x.saexId) ?? 0),
           })
         }

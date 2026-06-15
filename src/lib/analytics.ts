@@ -43,6 +43,21 @@ export function filterTestUsers(sims: Simulation[]): Simulation[] {
 // Helpers
 // ─────────────────────────────────────────────
 
+/**
+ * Normalizes a display name: converts ALL-CAPS strings (e.g. "NANCY MARTINEZ")
+ * to Title Case ("Nancy Martinez"). Mixed-case names are returned as-is.
+ */
+export function normalizeName(name: string | null | undefined): string {
+  if (!name) return ''
+  const trimmed = name.trim()
+  if (trimmed === trimmed.toUpperCase()) {
+    return trimmed.replace(/\b\w/g, (c) => c.toUpperCase()).replace(/\b(\w)\w+/g, (word) =>
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    )
+  }
+  return trimmed
+}
+
 function avg(nums: number[]): number {
   if (!nums.length) return 0
   return nums.reduce((a, b) => a + b, 0) / nums.length
@@ -324,20 +339,26 @@ export interface UserStat {
 }
 
 export function computeUserStats(sims: Simulation[]): UserStat[] {
-  const byUser: Record<string, Simulation[]> = {}
+  // Group by email (stable key) so the same person doesn't split across
+  // different name formats (ALL-CAPS vs Title Case from the DB).
+  const byEmail: Record<string, Simulation[]> = {}
   sims.forEach((s) => {
-    const key = s.Usuario_Nombre || s.Usuario || 'Unknown'
-    if (!byUser[key]) byUser[key] = []
-    byUser[key].push(s)
+    const key = (s.Usuario || s.Usuario_Nombre || 'Unknown').toLowerCase()
+    if (!byEmail[key]) byEmail[key] = []
+    byEmail[key].push(s)
   })
 
-  return Object.entries(byUser)
-    .map(([name, group]) => {
+  return Object.entries(byEmail)
+    .map(([, group]) => {
       const passCount = group.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length
-      // Use reduce to avoid stack overflow on large groups
       const bestScore = group.reduce((m, s) => Math.max(m, s.Calificacion), 0)
+      // Pick the best-formatted display name: prefer mixed-case over ALL-CAPS
+      const rawName = group.find((s) => s.Usuario_Nombre && s.Usuario_Nombre !== s.Usuario_Nombre?.toUpperCase())?.Usuario_Nombre
+        ?? group[0].Usuario_Nombre
+        ?? group[0].Usuario
+        ?? 'Unknown'
       return {
-        name,
+        name:      normalizeName(rawName),
         userId:    group[0].Usuario,
         count:     group.length,
         avgScore:  avgScore(group),

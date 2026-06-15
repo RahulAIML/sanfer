@@ -1,5 +1,5 @@
 /** Earliest date with real session data in the DB */
-export const DATA_EPOCH = '2025-09-01'
+export const DATA_EPOCH = '2026-06-01'
 
 /** Returns the full date range from programme start to today */
 export function getDefaultDateRange(): { from: string; to: string } {

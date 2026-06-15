@@ -2,7 +2,7 @@ import { memo, useState, useMemo, useRef, useEffect } from 'react'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver'
 import {
-  computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution,
+  computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution, normalizeName,
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
@@ -283,7 +283,7 @@ export default function OverviewPage() {
                       }`}>
                         {selectedUsers.has(name) && <span className="text-white text-[8px] font-bold">✓</span>}
                       </span>
-                      {name}
+                      {normalizeName(name)}
                     </button>
                   ))}
                 </div>
