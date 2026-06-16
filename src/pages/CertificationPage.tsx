@@ -144,8 +144,8 @@ export default function CertificationPage() {
     return (
       <div className="space-y-6">
         <div className="h-8 w-56 skeleton rounded-lg" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="card p-5 h-24 skeleton rounded-xl" />)}
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="card p-5 h-24 skeleton rounded-xl" />)}
         </div>
         <div className="card p-5 h-96 skeleton rounded-xl" />
       </div>
@@ -186,7 +186,7 @@ export default function CertificationPage() {
       })()}
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-5 gap-4">
         <CertKpi icon={GitBranch}    label={t('cert_kpi_lines')}     value={CERT_LINES.length} />
         <CertKpi icon={Layers}       label={t('cert_kpi_exercises')} value={CERT_TOTAL_SLOTS} />
         <CertKpi icon={Users}        label={t('cert_kpi_jefes')}     value={CERT_JEFES.length} />

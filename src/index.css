@@ -177,7 +177,7 @@ html:not(.dark) .text-slate-400 { color: #64748b; }
 }
 
 @keyframes pageFadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(3px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 

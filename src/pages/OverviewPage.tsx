@@ -201,8 +201,8 @@ export default function OverviewPage() {
           ))}
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="card p-5 h-80 skeleton rounded-xl lg:col-span-2" />
-          <div className="card p-5 h-80 skeleton rounded-xl" />
+          <div className="card p-5 h-60 sm:h-80 skeleton rounded-xl lg:col-span-2" />
+          <div className="card p-5 h-60 sm:h-80 skeleton rounded-xl" />
         </div>
       </div>
     )
@@ -330,7 +330,7 @@ export default function OverviewPage() {
             </span>
           )}
         </div>
-        <div className="h-72">
+        <div className="h-48 sm:h-72">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
               <defs>
@@ -360,9 +360,9 @@ export default function OverviewPage() {
             <div className="card p-5">
               <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('activity_breakdown')}</h3>
               {activitiesLoading ? (
-                <div className="h-64 skeleton rounded-lg" />
+                <div className="h-48 sm:h-64 skeleton rounded-lg" />
               ) : (
-                <div className="h-64">
+                <div className="h-48 sm:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={topActivities} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -418,7 +418,7 @@ export default function OverviewPage() {
         {scoreVisible ? (
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('score_distribution')}</h3>
-            <div className="h-56">
+            <div className="h-44 sm:h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={activeScoreDist ?? []} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />

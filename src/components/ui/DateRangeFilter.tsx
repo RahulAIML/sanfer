@@ -45,7 +45,7 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
   }
 
   const inputCls = cn(
-    'bg-surface text-slate-300 text-xs rounded-lg px-1.5 py-1.5 focus:outline-none cursor-pointer min-w-0 w-[120px] transition-colors border',
+    'bg-surface text-slate-300 text-xs rounded-lg px-1.5 py-1.5 focus:outline-none cursor-pointer min-w-0 w-[100px] sm:w-[120px] transition-colors border',
     isPending ? 'border-amber-500/60' : isActive ? 'border-accent/60' : 'border-line',
   )
 
@@ -63,7 +63,10 @@ export function DateRangeFilter({ from, to, onApply, label, className }: Props) 
         <button
           key={p.label}
           onClick={() => applyPreset(p)}
-          className="text-[11px] px-2 py-1 rounded border border-line/50 text-slate-500 hover:text-slate-200 hover:border-line transition-colors leading-none"
+          className={cn(
+            'text-[11px] px-2 py-1 rounded border border-line/50 text-slate-500 hover:text-slate-200 hover:border-line transition-colors leading-none',
+            (p.label === '15D' || p.label === '6M' || p.label === '12M') ? 'hidden sm:inline-flex' : 'inline-flex',
+          )}
         >
           {p.label}
         </button>
