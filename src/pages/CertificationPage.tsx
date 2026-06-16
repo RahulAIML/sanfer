@@ -6,7 +6,7 @@ import { filterTestUsers, normalizeName } from '../lib/analytics'
 import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
-  BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, CheckCircle2, Award,
+  BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, Award,
 } from 'lucide-react'
 
 // Completion-only: certified = has at least one session on every assigned sim
@@ -186,12 +186,11 @@ export default function CertificationPage() {
       })()}
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
         <CertKpi icon={GitBranch}    label={t('cert_kpi_lines')}     value={CERT_LINES.length} />
         <CertKpi icon={Layers}       label={t('cert_kpi_exercises')} value={CERT_TOTAL_SLOTS} />
         <CertKpi icon={Users}        label={t('cert_kpi_jefes')}     value={CERT_JEFES.length} />
         <CertKpi icon={PlayCircle}   label={t('cert_kpi_sessions')}  value={totals.sessions} />
-        <CertKpi icon={CheckCircle2} label={t('cert_kpi_passrate')}  value={`${totals.passPct}%`} />
         <CertKpi icon={Award}        label={t('cert_kpi_certified')} value={totals.certifiedPeople} highlight />
       </div>
 

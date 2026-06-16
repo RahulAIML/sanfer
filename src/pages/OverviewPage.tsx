@@ -13,12 +13,12 @@ import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
 import {
-  BarChart3, PlayCircle, CheckCircle2, Users, Download,
+  BarChart3, PlayCircle, Users, Download,
   Search, ChevronDown, X, BookOpen, UserCheck, GraduationCap,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, BarChart, Bar,
+  BarChart, Bar,
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { useChartColors } from '../lib/chartTheme'
@@ -32,17 +32,6 @@ function TrendTooltip({ active, payload, label, es, c }: { active?: boolean; pay
     <TooltipShell c={c} minWidth={160}>
       <TTitle text={String(label ?? '')} c={c} />
       <TRow label={es ? 'Puntaje Prom.' : 'Avg Score'} value={`${payload[0]?.value ?? 0}%`} valueStyle={{ color: c.accent }} c={c} />
-    </TooltipShell>
-  )
-}
-
-function PassFailTooltip({ active, payload, c }: { active?: boolean; payload?: any[]; c: TooltipColors }) {
-  if (!active || !payload?.length) return null
-  const d = payload[0]
-  return (
-    <TooltipShell c={c} minWidth={140}>
-      <TTitle text={d.name} c={c} />
-      <TRow label="Count" value={d.value} valueStyle={{ color: d.payload.color }} c={c} />
     </TooltipShell>
   )
 }
@@ -196,10 +185,7 @@ export default function OverviewPage() {
       [es ? 'Métrica' : 'Metric',              es ? 'Valor' : 'Value'],
       [es ? 'Total Simulaciones' : 'Total Simulations', activeKpis.totalSimulations],
       [es ? 'Puntaje Promedio'   : 'Average Score',     `${activeKpis.averageScore}%`],
-      [es ? 'Tasa de Aprobación' : 'Pass Rate',         `${activeKpis.passRate}%`],
       [es ? 'Asesores Activos'   : 'Active Advisors',   activeKpis.activeAdvisors],
-      [es ? 'Aprobados'          : 'Passed',            activeKpis.passCount],
-      [es ? 'Reprobados'         : 'Failed',            activeKpis.failCount],
       ...(activeActStats ?? []).map((a) => [a.name, a.count]),
     ], `sanfer_sim_overview_${csvDate()}.csv`)
   }
@@ -231,11 +217,6 @@ export default function OverviewPage() {
       </div>
     )
   }
-
-  const passFailData = [
-    { name: t('pass'), value: activeKpis!.passCount, color: COLORS.pass },
-    { name: t('fail'), value: activeKpis!.failCount, color: COLORS.fail },
-  ]
 
   const topActivities = (activeActStats ?? []).slice(0, 5).map((a) => ({
     name: a.name.length > 24 ? a.name.slice(0, 24) + '...' : a.name,
@@ -331,7 +312,6 @@ export default function OverviewPage() {
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-4">
         <KpiCard icon={PlayCircle}      label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
         <KpiCard icon={BarChart3}       label={t('kpi_avg_score')}          value={avgDisplay}                     sub={t('sub_overall')}           color="violet"  />
-        <KpiCard icon={CheckCircle2}    label={t('kpi_pass_rate')}          value={`${activeKpis!.passRate}%`}     sub={t('sub_sessions_passed')}   color="pass"    />
         <KpiCard icon={Users}           label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
         <KpiCard icon={GraduationCap}   label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')} color="pass"   />
         {/* Business count is 45 assignment slots (Excel "Ejercicios totales"):
@@ -341,55 +321,31 @@ export default function OverviewPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="card p-5 sm:col-span-2 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
-            {anyFilterActive && (
-              <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
-              </span>
-            )}
-          </div>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.3} />
-                    <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
-                <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
+          {anyFilterActive && (
+            <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+              {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
+            </span>
+          )}
         </div>
-
-        <div className="card p-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('pass_fail_dist')}</h3>
-          <div className="h-56">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={passFailData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={4} dataKey="value">
-                  {passFailData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                </Pie>
-                <Tooltip content={<PassFailTooltip c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex justify-center gap-4 mt-2">
-            {passFailData.map((d) => (
-              <div key={d.name} className="flex items-center gap-1.5 text-xs text-slate-400">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: d.color }} />
-                {d.name}: {d.value}
-              </div>
-            ))}
-          </div>
+        <div className="h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
+              <YAxis domain={[0, 100]} />
+              <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
+              <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

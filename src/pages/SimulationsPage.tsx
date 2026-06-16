@@ -8,7 +8,7 @@ import { PASS_THRESHOLD, normalizeName } from '../lib/analytics'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { SimReportModal } from '../components/ui/SimReportModal'
 import {
-  Search, Calendar, CheckCircle2, XCircle, ChevronDown, ChevronUp,
+  Search, Calendar, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, BadgeCheck, FileText, Target, ListChecks, Gauge, Lock, Download,
 } from 'lucide-react'
 import { cn } from '../lib/cn'
@@ -164,7 +164,6 @@ export default function SimulationsPage() {
                   <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t('col_date')}</span>
                 </th>
                 <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_score')}</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_status')}</th>
                 <th className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_details')}</th>
               </tr>
             </thead>
@@ -189,24 +188,13 @@ export default function SimulationsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        {s.Diagnostico_Final?.toLowerCase() === 'si' ? (
-                          <span className="badge bg-success/10 text-success">
-                            <CheckCircle2 className="w-3 h-3" /> {t('status_pass')}
-                          </span>
-                        ) : (
-                          <span className="badge bg-danger/10 text-danger">
-                            <XCircle className="w-3 h-3" /> {t('status_fail')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
                         {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
                       </td>
                     </tr>
 
                     {expanded && (
                       <tr className="bg-surface/50">
-                        <td colSpan={6} className="px-4 py-4">
+                        <td colSpan={5} className="px-4 py-4">
                           <div className="flex justify-end gap-2 mb-3">
                             <button
                               onClick={(e) => { e.stopPropagation(); setReportSimId(s.ID_Sim) }}
