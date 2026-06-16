@@ -14,13 +14,13 @@
 }
 
 .dark {
-  --color-bg: 7 14 28;
-  --color-surface: 12 22 40;
-  --color-card: 15 26 46;
-  --color-card-hover: 21 32 53;
-  --color-line: 26 45 69;
-  --color-line-subtle: 17 32 56;
-  --text-base: #f8fafc;
+  --color-bg: 4 6 18;
+  --color-surface: 8 12 28;
+  --color-card: 11 17 36;
+  --color-card-hover: 16 24 48;
+  --color-line: 28 44 76;
+  --color-line-subtle: 16 28 54;
+  --text-base: #f0f4ff;
 }
 /* ──────────────────────────────────────────────────────────────────────── */
 

@@ -13,8 +13,7 @@ import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
 import {
-  BarChart3, PlayCircle, Users, Download,
-  Search, ChevronDown, X, BookOpen, UserCheck, GraduationCap,
+  Users, Download, Search, ChevronDown, X,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -24,7 +23,7 @@ import { Link } from 'react-router-dom'
 import { useChartColors } from '../lib/chartTheme'
 import { TooltipShell, TRow, TTitle, useTooltipColors, type TooltipColors } from '../components/charts/TooltipShell'
 
-const COLORS = { pass: '#10B981', fail: '#EF4444', accent: '#3B82F6', violet: '#8B5CF6' }
+const COLORS = { pass: '#10F5A0', fail: '#FF4D4D', accent: '#00D4FF', violet: '#A855F7' }
 
 function TrendTooltip({ active, payload, label, es, c }: { active?: boolean; payload?: any[]; label?: string; es: boolean; c: TooltipColors }) {
   if (!active || !payload?.length) return null
@@ -176,7 +175,22 @@ export default function OverviewPage() {
   }, [activeKpis, anyFilterActive, topStatsQ.data])
 
   // trend from useDashboardData is already date-filtered — use it directly
-  const filteredTrend = trend ?? []
+  const filteredTrend  = trend ?? []
+  const simsSparkData  = useMemo(() => filteredTrend.slice(-20).map((d) => d.count),    [filteredTrend])
+  const scoreSparkData = useMemo(() => filteredTrend.slice(-20).map((d) => d.avgScore), [filteredTrend])
+  const advisorsSparkData = useMemo(() => {
+    const byDate = new Map<string, Set<string>>()
+    filteredSims.forEach((s) => {
+      const d = s.Fecha_y_Hora?.slice(0, 10)
+      if (!d || !s.Usuario_Nombre) return
+      if (!byDate.has(d)) byDate.set(d, new Set())
+      byDate.get(d)!.add(s.Usuario_Nombre)
+    })
+    return Array.from(byDate.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-20)
+      .map(([, users]) => users.size)
+  }, [filteredSims])
 
   // ── CSV exports ─────────────────────────────
   function exportSimCSV() {
@@ -310,14 +324,12 @@ export default function OverviewPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-4">
-        <KpiCard icon={PlayCircle}      label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}   sub={t('sub_across_activities')} color="accent"  />
-        <KpiCard icon={BarChart3}       label={t('kpi_avg_score')}          value={avgDisplay}                     sub={t('sub_overall')}           color="violet"  />
-        <KpiCard icon={Users}           label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}     sub={t('sub_with_simulations')}  color="indigo"  />
-        <KpiCard icon={GraduationCap}   label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')} color="pass"   />
-        {/* Business count is 45 assignment slots (Excel "Ejercicios totales"):
-            exercise #420 is assigned to two líneas, so unique simulators = 44 */}
-        <KpiCard icon={BookOpen}        label={t('kpi_total_activities')}   value={CERT_TOTAL_SLOTS}               sub={t('sub_cert_slots')}        color="accent"  />
-        <KpiCard icon={UserCheck}       label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}      sub={t('sub_registered')}        color="violet"  />
+        <KpiCard label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}            sub={t('sub_across_activities')} color="accent"  spark={simsSparkData}  />
+        <KpiCard label={t('kpi_avg_score')}          value={avgDisplay}                              sub={t('sub_overall')}           color="violet"  spark={scoreSparkData} />
+        <KpiCard label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}              sub={t('sub_with_simulations')}  color="indigo"  spark={advisorsSparkData} />
+        <KpiCard label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')}          color="pass"    />
+        <KpiCard label={t('kpi_total_activities')}   value={CERT_TOTAL_SLOTS}                        sub={t('sub_cert_slots')}        color="accent"  />
+        <KpiCard label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}               sub={t('sub_registered')}        color="violet"  />
       </div>
 
       {/* Charts */}
@@ -343,7 +355,7 @@ export default function OverviewPage() {
               <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
               <YAxis domain={[0, 100]} />
               <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
-              <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} />
+              <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} isAnimationActive={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -369,7 +381,7 @@ export default function OverviewPage() {
                       <XAxis type="number" domain={[0, 'dataMax + 5']} hide />
                       <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + '…' : v} />
                       <Tooltip content={<ActivityTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
-                      <Bar dataKey="count" fill={COLORS.accent} radius={[0, 4, 4, 0]} barSize={20} />
+                      <Bar dataKey="count" fill={COLORS.accent} radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={false} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -425,7 +437,7 @@ export default function OverviewPage() {
                   <XAxis dataKey="label" />
                   <YAxis />
                   <Tooltip content={<ScoreDistTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
-                  <Bar dataKey="count" fill={COLORS.accent} radius={[4, 4, 0, 0]} barSize={40} />
+                  <Bar dataKey="count" fill={COLORS.accent} radius={[4, 4, 0, 0]} barSize={40} isAnimationActive={false} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -439,28 +451,75 @@ export default function OverviewPage() {
 }
 
 const KpiCard = memo(function KpiCard({
-  icon: Icon, label, value, sub, color,
+  label, value, sub, color, spark,
 }: {
-  icon: React.ComponentType<{ className?: string }>
   label: string; value: string | number; sub: string
   color: 'accent' | 'violet' | 'pass' | 'indigo'
+  spark?: number[]
 }) {
-  const colorMap = {
-    accent: 'text-accent bg-accent/10', violet: 'text-violet bg-violet/10',
-    pass:   'text-success bg-success/10', indigo: 'text-indigo bg-indigo/10',
+  const palette = {
+    accent: { text: '#00D4FF', border: 'rgba(0,212,255,0.25)',   top: '#00D4FF', glow: 'rgba(0,212,255,0.06)',   fill: 'rgba(0,212,255,0.15)'   },
+    violet: { text: '#A855F7', border: 'rgba(168,85,247,0.25)',  top: '#A855F7', glow: 'rgba(168,85,247,0.06)',  fill: 'rgba(168,85,247,0.15)'  },
+    pass:   { text: '#10F5A0', border: 'rgba(16,245,160,0.25)',  top: '#10F5A0', glow: 'rgba(16,245,160,0.06)',  fill: 'rgba(16,245,160,0.15)'  },
+    indigo: { text: '#818CF8', border: 'rgba(129,140,248,0.25)', top: '#818CF8', glow: 'rgba(129,140,248,0.06)', fill: 'rgba(129,140,248,0.15)' },
   }
+  const p = palette[color]
+  // stable gradient ID — label chars are unique per card
+  const gradId = `kpi-grad-${color}-${label.replace(/\s/g, '')}`
+
+  const delta = (() => {
+    if (!spark || spark.length < 4) return null
+    const half = Math.floor(spark.length / 2)
+    const first = spark.slice(0, half).reduce((a, b) => a + b, 0) / half
+    const last  = spark.slice(-half).reduce((a, b) => a + b, 0) / half
+    if (first === 0) return null
+    const pct = Math.round(((last - first) / first) * 100)
+    return pct === 0 ? null : pct
+  })()
+
   return (
-    <div className="card p-4 sm:p-5">
-      <div className="flex items-start justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-500 font-medium mb-1 truncate">{label}</p>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight" style={{ color: 'var(--text-base)' }}>{value}</p>
-          <p className="text-[11px] text-slate-600 mt-1 truncate">{sub}</p>
-        </div>
-        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ml-2 ${colorMap[color]}`}>
-          <Icon className="w-4 h-4" />
-        </div>
+    <div
+      className="card p-4 sm:p-5 relative overflow-hidden"
+      style={{ borderColor: p.border, background: `linear-gradient(135deg, ${p.glow} 0%, transparent 60%)` }}
+    >
+      {/* Top accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: p.top }} />
+
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">{label}</p>
+
+      <div className="flex items-end justify-between gap-2 mb-1">
+        <p className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight tabular-nums leading-none" style={{ color: p.text }}>
+          {value}
+        </p>
+        {delta !== null && (
+          <span className={`text-xs font-bold mb-1 shrink-0 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+            {delta > 0 ? '↑' : '↓'}{Math.abs(delta)}%
+          </span>
+        )}
       </div>
+
+      <p className="text-[11px] text-slate-600 truncate">{sub}</p>
+
+      {spark && spark.length > 2 && (
+        <div className="h-12 mt-3 -mx-2 -mb-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={spark.map((v, i) => ({ v, i }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor={p.top} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={p.top} stopOpacity={0}    />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone" dataKey="v"
+                stroke={p.top} strokeWidth={2}
+                fill={`url(#${gradId})`}
+                dot={false} isAnimationActive={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   )
 })
