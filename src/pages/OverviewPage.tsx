@@ -323,7 +323,7 @@ export default function OverviewPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <KpiCard label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}            sub={t('sub_across_activities')} color="accent"  spark={simsSparkData}  />
         <KpiCard label={t('kpi_avg_score')}          value={avgDisplay}                              sub={t('sub_overall')}           color="violet"  spark={scoreSparkData} />
         <KpiCard label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}              sub={t('sub_with_simulations')}  color="indigo"  spark={advisorsSparkData} />
