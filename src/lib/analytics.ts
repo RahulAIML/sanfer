@@ -176,14 +176,24 @@ export function computeKPIs(
     if (!Number.isFinite(worstScore)) worstScore = 0
   }
 
+  // Count only real Sanfer participants: known Sanfer email domains, no test/rolplay accounts.
+  // Silverio's verified DB count is 984; best client-side approximation without a role field.
+  const SANFER_DOMAINS = ['@sanfer.com.mx', '@sanfer.com', '@hormona.com.mx']
+  const filteredMemberCount = members.filter((m) => {
+    const u = (m.mb_user ?? '').trim().toLowerCase()
+    if (!SANFER_DOMAINS.some((d) => u.endsWith(d))) return false
+    const n = m.mb_fullname.toLowerCase()
+    return !u.includes('tester') && !u.includes('prueba') &&
+           !n.includes('prueba') && !n.includes('demo') && !n.includes('capacit')
+  }).length
+
   return {
     totalSimulations: sims.length,
     averageScore:     avgScore(sims),
     passRate:         pct(passCount, sims.length),
     activeAdvisors:   advisors.size,
     totalActivities:  activities.length,
-    // rawMemberCount = full API count (incl. test accounts); matches official platform total
-    totalMembers:     rawMemberCount ?? members.length,
+    totalMembers:     filteredMemberCount || (rawMemberCount ?? members.length),
     totalAdmins:      admins.filter((a) => a.rpa_profile_type === 'admin').length,
     totalSupervisors: admins.filter((a) => a.rpa_profile_type === 'supervisor').length,
     bestScore,
@@ -624,11 +634,17 @@ export function buildAIContext(
     ? `\nScore Distribution:\n${scoreDist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')}`
     : ''
 
-  const worst5 = objections.slice(0, 5).map((o, i) => {
-    const modelLine = o.model_answer ? `\n     Model answer: "${o.model_answer.slice(0, 200)}"` : ''
-    return `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success${modelLine}`
-  }).join('\n')
-  const best5  = [...objections].reverse().slice(0, 5).map((o, i) => `  ${i + 1}. "${o.objection_text}" — ${o.count}x asked, ${o.pass_rate}% success`).join('\n')
+  const objBlock = objections.length === 0
+    ? 'No objection data for current range.'
+    : objections.map((o, i) => {
+        const modelLine = o.model_answer
+          ? `\n   Ideal answer: "${o.model_answer.slice(0, 300)}"`
+          : ''
+        const repLines = o.top_answers && o.top_answers.length > 0
+          ? '\n   Sample rep responses:\n' + o.top_answers.map((r, ri) => `     ${ri + 1}. "${r.slice(0, 250)}"`).join('\n')
+          : ''
+        return `  ${i + 1}. "${o.objection_text}" — ${o.count}x, ${o.pass_rate}% pass rate${modelLine}${repLines}`
+      }).join('\n\n')
 
   const certBlock = certSummary ? `
 CERTIFICATION ("Certificación Sanfer — Junio 2026"):
@@ -672,9 +688,8 @@ ${actList}
 Recent Sessions (last 10):
 ${recent10}
 ${certBlock}
-OBJECTION HANDLING ("Manejo de Objeciones"):
-Total unique objections: ${objections.length}
-${objections.length > 0 ? `Hardest (lowest success rate):\n${worst5}\nEasiest:\n${best5}` : 'No objection data for current range.'}
+OBJECTION HANDLING ("Manejo de Objeciones") — all ${objections.length} unique objections, sorted hardest first:
+${objBlock}
 ${pageBlock ? `\n${pageBlock}` : ''}
   `.trim()
 }
