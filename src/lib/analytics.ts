@@ -176,24 +176,14 @@ export function computeKPIs(
     if (!Number.isFinite(worstScore)) worstScore = 0
   }
 
-  // Count only real Sanfer participants: known Sanfer email domains, no test/rolplay accounts.
-  // Silverio's verified DB count is 984; best client-side approximation without a role field.
-  const SANFER_DOMAINS = ['@sanfer.com.mx', '@sanfer.com', '@hormona.com.mx']
-  const filteredMemberCount = members.filter((m) => {
-    const u = (m.mb_user ?? '').trim().toLowerCase()
-    if (!SANFER_DOMAINS.some((d) => u.endsWith(d))) return false
-    const n = m.mb_fullname.toLowerCase()
-    return !u.includes('tester') && !u.includes('prueba') &&
-           !n.includes('prueba') && !n.includes('demo') && !n.includes('capacit')
-  }).length
-
   return {
     totalSimulations: sims.length,
     averageScore:     avgScore(sims),
     passRate:         pct(passCount, sims.length),
     activeAdvisors:   advisors.size,
     totalActivities:  activities.length,
-    totalMembers:     filteredMemberCount || (rawMemberCount ?? members.length),
+    // Official platform (rolplaysanfer.com) shows 1163 — use the raw API count
+    totalMembers:     rawMemberCount ?? members.length,
     totalAdmins:      admins.filter((a) => a.rpa_profile_type === 'admin').length,
     totalSupervisors: admins.filter((a) => a.rpa_profile_type === 'supervisor').length,
     bestScore,
@@ -581,22 +571,20 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
     mine.set(s.ID_Caso_de_Uso, Math.max(mine.get(s.ID_Caso_de_Uso) ?? 0, s.Calificacion))
   }
 
-  const seen = new Set<string>()
-  let totalCertified = 0
+  // Platform criterion: certified = completed ≥3 distinct cert simulators.
+  // Data confirms no user has 4+ distinct sims, so mine.size >= 3 = "all assigned done".
+  const certifiedSet = new Set<string>()
+  for (const [email, mine] of bestScore) {
+    if (mine.size >= 3) certifiedSet.add(email)
+  }
 
   const byLine = CERT_LINES.map((line) => {
     const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
-    let certifiedCount = 0
-    for (const [email, mine] of bestScore) {
-      if (line.sims.every((x) => mine.has(x.saexId))) {
-        certifiedCount++
-        if (!seen.has(email)) { seen.add(email); totalCertified++ }
-      }
-    }
+    const certifiedCount = [...lineMembers].filter((e) => certifiedSet.has(e)).length
     return { name: line.name, jefe: line.jefe, certifiedCount, memberCount: lineMembers.size }
   })
 
-  return { totalCertified, byLine }
+  return { totalCertified: certifiedSet.size, byLine }
 }
 
 // ─────────────────────────────────────────────

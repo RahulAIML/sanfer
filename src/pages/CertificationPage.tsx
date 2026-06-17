@@ -90,15 +90,15 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified advisors: anyone whose best attempt exceeds the bar on all
-      // 3 of this line's sims — exercise-based, so roster gaps can't hide them.
+      // Certified: line member who completed ≥3 distinct cert simulators (platform criterion).
       const certified: CertifiedAdvisor[] = []
-      for (const [email, mine] of bestScore) {
-        if (line.sims.every((x) => mine.has(x.saexId))) {
+      for (const email of lineMembers) {
+        const mine = bestScore.get(email)
+        if (mine && mine.size >= 3) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
-            scores: line.sims.map((x) => mine.get(x.saexId) ?? 0),
+            scores: [...mine.values()],
           })
         }
       }
