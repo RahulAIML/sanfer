@@ -127,8 +127,16 @@ export default function CertificationPage() {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
     const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
-    // distinct emails — an advisor certifying under two lines counts once
-    const certifiedPeople = new Set(lines.flatMap((l) => l.certified.map((c) => c.email))).size
+    // Count directly from sims: any user with ≥3 distinct cert sims = certified.
+    // This matches the official platform (391) and catches users not in CERT_LINES.
+    const byUser = new Map<string, Set<number>>()
+    for (const s of sims) {
+      const email = (s.Usuario ?? '').toLowerCase()
+      if (!email) continue
+      if (!byUser.has(email)) byUser.set(email, new Set())
+      byUser.get(email)!.add(s.ID_Caso_de_Uso)
+    }
+    const certifiedPeople = [...byUser.values()].filter((m) => m.size >= 3).length
     return {
       expected,
       completed,

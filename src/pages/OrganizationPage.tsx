@@ -10,7 +10,7 @@ const PAGE_SIZE = 50
 export default function OrganizationPage() {
   const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
-  const { orgLoading, isError, orgTree, members, admins, refetch } = useDashboardData()
+  const { orgLoading, isError, orgTree, members, admins, kpis, refetch } = useDashboardData()
 
   const [page, setPage] = useState(0)
 
@@ -43,7 +43,7 @@ export default function OrganizationPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard icon={Shield} label={t('kpi_total_admins')} value={admins.filter((a) => a.rpa_profile_type === 'admin').length} color="accent" />
         <StatCard icon={UserCheck} label={t('kpi_total_supervisors')} value={admins.filter((a) => a.rpa_profile_type === 'supervisor').length} color="violet" />
-        <StatCard icon={Users} label={t('kpi_total_members')} value={members.length} color="success" />
+        <StatCard icon={Users} label={t('kpi_total_members')} value={kpis?.totalMembers ?? members.length} color="success" />
       </div>
 
       {/* Tree */}
