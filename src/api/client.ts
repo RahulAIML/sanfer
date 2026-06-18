@@ -50,6 +50,25 @@ function isInternalEmail(email: string | null | undefined): boolean {
   return /rolplay/i.test(email ?? '')
 }
 
+// Tester/internal rpa_id values confirmed by Mexico team (excluded from all admin counts).
+const TESTER_ADMIN_IDS = new Set([1, 28, 29, 97])
+
+// Tester member: mb_admin linked to a tester admin, or username/fullname contains
+// test-account keywords (mirrors the SQL: mb_user LIKE '%tester%' OR '%prueba%' OR
+// '%demo%', mb_fullname LIKE '%prueba%' OR '%capacit%').
+function isTesterMember(m: { mb_admin: number; mb_user: string; mb_fullname: string }): boolean {
+  if (TESTER_ADMIN_IDS.has(m.mb_admin)) return true
+  const user = m.mb_user.toLowerCase()
+  const name = m.mb_fullname.toLowerCase()
+  return (
+    user.includes('tester') ||
+    user.includes('prueba') ||
+    user.includes('demo')   ||
+    name.includes('prueba') ||
+    name.includes('capacit')
+  )
+}
+
 // ─────────────────────────────────────────────
 // Core fetch utility
 // ─────────────────────────────────────────────
@@ -117,21 +136,24 @@ export async function fetchMembers(signal?: AbortSignal): Promise<MembersRespons
       mb_fullname:    decodeEntities(m.mb_fullname),
       mb_designation: decodeEntities(m.mb_designation),
     }))
-  // Preserve resp.count (raw API total incl. test accounts) for the "Total Representatives"
-  // KPI to match what the official platform reports. data is still filtered for analytics.
-  return { ...resp, data, count: resp.count ?? data.length }
+    .filter((m) => !isTesterMember(m))
+  return { ...resp, data, count: data.length }
 }
 
 export async function fetchTopStats(signal?: AbortSignal): Promise<TopStatsResponse> {
   return fetchJSON<TopStatsResponse>(`${BRIDGE_BASE}/?action=sim.topstats`, signal)
 }
 
-// 'dev' profiles are platform tooling accounts ("Administrador Dev"), not part
-// of the Sanfer organization — excluded from counts, the org tree, and tables.
+// 'dev' profiles and tester IDs (1,28,29,97) are platform tooling accounts, not
+// part of the Sanfer organization — excluded from counts, the org tree, and tables.
 export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse> {
   const resp = await fetchJSON<AdminsResponse>(`${BRIDGE_BASE}/?action=org.admins`, signal)
   const data = (resp.data ?? [])
-    .filter((a) => a.rpa_profile_type !== 'dev' && !isInternalEmail(a.rpa_email))
+    .filter((a) =>
+      a.rpa_profile_type !== 'dev' &&
+      !TESTER_ADMIN_IDS.has(a.rpa_id) &&
+      !isInternalEmail(a.rpa_email),
+    )
     .map((a) => ({ ...a, rpa_full_name: decodeEntities(a.rpa_full_name) }))
   return { ...resp, data, count: data.length }
 }
