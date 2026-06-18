@@ -115,7 +115,7 @@ export interface MembersResponse {
 // ─────────────────────────────────────────────
 // DIM_ADMIN (administrators)
 // ─────────────────────────────────────────────
-export type ProfileType = 'dev' | 'tenant' | 'supervisor' | 'admin' | 'enradmin'
+export type ProfileType = 'dev' | 'tenant' | 'ultrasupervisor' | 'supervisor' | 'admin' | 'enradmin'
 
 // Served by the bridge org.admins proxy — trimmed to the fields in use.
 export interface Administrator {
