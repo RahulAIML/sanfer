@@ -104,30 +104,22 @@ export async function fetchSimReport(simId: number, signal?: AbortSignal): Promi
   }
 }
 
-// Members come via the bridge org proxy — trimmed to the fields the dashboard
-// reads (~35 KB wire vs ~800 KB raw upstream) and disk-cached server-side.
-// They are filtered to real participants (internal rolplay accounts dropped)
-// and names entity-decoded HERE so every page and KPI sees identical data.
+// Members — Mexico team official SQL, direct DB query, disk-cached server-side.
 export async function fetchMembers(signal?: AbortSignal): Promise<MembersResponse> {
   const resp = await fetchJSON<MembersResponse>(`${BRIDGE_BASE}/?action=org.members`, signal)
-  const data = (resp.data ?? [])
-    .filter((m) => !isInternalEmail(m.mb_email) && !isInternalEmail(m.mb_user))
-    .map((m) => ({
-      ...m,
-      mb_fullname:    decodeEntities(m.mb_fullname),
-      mb_designation: decodeEntities(m.mb_designation),
-    }))
-  // Preserve resp.count (raw API total incl. test accounts) for the "Total Representatives"
-  // KPI to match what the official platform reports. data is still filtered for analytics.
-  return { ...resp, data, count: resp.count ?? data.length }
+  const data = (resp.data ?? []).map((m) => ({
+    ...m,
+    mb_fullname:    decodeEntities(m.mb_fullname),
+    mb_designation: decodeEntities(m.mb_designation),
+  }))
+  return { ...resp, data, count: data.length }
 }
 
 export async function fetchTopStats(signal?: AbortSignal): Promise<TopStatsResponse> {
   return fetchJSON<TopStatsResponse>(`${BRIDGE_BASE}/?action=sim.topstats`, signal)
 }
 
-// 'dev' profiles are platform tooling accounts ("Administrador Dev"), not part
-// of the Sanfer organization — excluded from counts, the org tree, and tables.
+// Admins — Mexico team official SQL, direct DB query.
 export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse> {
   const resp = await fetchJSON<AdminsResponse>(`${BRIDGE_BASE}/?action=org.admins`, signal)
   const data = (resp.data ?? [])

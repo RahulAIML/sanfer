@@ -182,7 +182,6 @@ export function computeKPIs(
     passRate:         pct(passCount, sims.length),
     activeAdvisors:   advisors.size,
     totalActivities:  activities.length,
-    // Official platform (rolplaysanfer.com) shows 1163 — use the raw API count
     totalMembers:     rawMemberCount ?? members.length,
     totalAdmins:      admins.filter((a) => a.rpa_profile_type === 'admin').length,
     totalSupervisors: admins.filter((a) => a.rpa_profile_type === 'supervisor').length,

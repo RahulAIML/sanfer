@@ -69,11 +69,7 @@ export function useMembers() {
   })
 }
 
-/**
- * Raw member count from the API (including internal test accounts) — same cache
- * entry as useMembers(), just a different selector. Used for the "Total
- * Representatives" KPI to match what the official platform reports.
- */
+/** Member count from the bridge — same cache entry as useMembers(), different selector. */
 export function useMembersRawCount(): number {
   return (
     useQuery<MembersResponse>({
