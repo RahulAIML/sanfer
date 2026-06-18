@@ -3,7 +3,7 @@ import { useSimulations, useMembers } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
-import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES } from '../lib/certification'
+import { CERT_LINES, CERT_WINDOW, CERT_TOTAL_SLOTS, CERT_JEFES, CERT_MIN_SIMS } from '../lib/certification'
 import { cn } from '../lib/cn'
 import {
   BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, Award,
@@ -90,11 +90,11 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified: line member who completed ≥3 distinct cert simulators (platform criterion).
+      // Certified: line member who completed ≥CERT_MIN_SIMS distinct cert simulators (platform criterion).
       const certified: CertifiedAdvisor[] = []
       for (const email of lineMembers) {
         const mine = bestScore.get(email)
-        if (mine && mine.size >= 3) {
+        if (mine && mine.size >= CERT_MIN_SIMS) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
@@ -108,7 +108,7 @@ export default function CertificationPage() {
         name:        line.name,
         jefe:        line.jefe,
         memberCount: lineMembers.size,
-        expected:    lineMembers.size * 3,
+        expected:    lineMembers.size * CERT_MIN_SIMS,
         completed,
         passed,
         sessions,
@@ -136,7 +136,7 @@ export default function CertificationPage() {
       if (!byUser.has(email)) byUser.set(email, new Set())
       byUser.get(email)!.add(s.ID_Caso_de_Uso)
     }
-    const certifiedPeople = [...byUser.values()].filter((m) => m.size >= 3).length
+    const certifiedPeople = [...byUser.values()].filter((m) => m.size >= CERT_MIN_SIMS).length
     return {
       expected,
       completed,

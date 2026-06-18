@@ -162,7 +162,6 @@ export default function LeaderboardPage() {
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">{t('col_advisor')}</th>
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right hidden sm:table-cell">{t('col_simulations')}</th>
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right">{t('col_avg_score')}</th>
-                  <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right hidden sm:table-cell">{t('col_pass_rate')}</th>
                   <th className="px-2 sm:px-4 py-2 sm:py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-right hidden md:table-cell">{t('col_best')}</th>
                 </tr>
               </thead>
@@ -189,7 +188,6 @@ export default function LeaderboardPage() {
                           <span className={`font-semibold text-sm ${u.avgScore >= 60 ? 'text-success' : 'text-danger'}`}>{u.avgScore}%</span>
                         </div>
                       </td>
-                      <td className="px-2 sm:px-4 py-2 sm:py-3 text-right text-slate-400 hidden sm:table-cell">{u.passRate}%</td>
                       <td className="px-2 sm:px-4 py-2 sm:py-3 text-right font-semibold text-slate-200 hidden md:table-cell">{u.bestScore}%</td>
                     </tr>
                   )

@@ -54,10 +54,7 @@ export default function ReportsPage() {
         [language === 'es' ? 'Métrica' : 'Metric', language === 'es' ? 'Valor' : 'Value'],
         [language === 'es' ? 'Total Simulaciones' : 'Total Simulations', String(simCount)],
         [language === 'es' ? 'Puntaje Promedio' : 'Average Score', String(kpis?.averageScore ?? 0) + '%'],
-        [language === 'es' ? 'Tasa de Aprobación' : 'Pass Rate', String(kpis?.passRate ?? 0) + '%'],
         [language === 'es' ? 'Asesores Activos' : 'Active Advisors', String(kpis?.activeAdvisors ?? 0)],
-        [language === 'es' ? 'Aprobados' : 'Passed', String(kpis?.passCount ?? 0)],
-        [language === 'es' ? 'Reprobados' : 'Failed', String(kpis?.failCount ?? 0)],
       ],
       `sanfer_simulator_summary_${new Date().toISOString().split('T')[0]}.csv`,
     )

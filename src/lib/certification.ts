@@ -25,6 +25,8 @@ export interface CertLine {
 export const CERT_WINDOW = { from: '2026-06-01', to: null as null } as const
 export const CERT_TITLE  = 'Certificación Sanfer — Junio 2026'
 export const CERT_TOTAL_SLOTS = 45   // 15 líneas × 3 simuladores (ID 420 shared by 2 líneas → 44 unique)
+export const CERT_MIN_SIMS    = 3    // a rep must attempt all 3 assigned simulators to be certified
+export const CERT_OFFICIAL_TOTAL = 391  // official rolplaysanfer.com count — validated 2026-06-17
 // Certification rule: completion-only (CTO confirmed).
 // A user is certified when they have at least one session on every assigned sim,
 // regardless of score. CERT_SCORE_BAR = 0 kept for reference; the actual check

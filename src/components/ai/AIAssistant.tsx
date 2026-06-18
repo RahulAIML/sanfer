@@ -8,7 +8,7 @@ import { useTranslation } from '../../lib/i18n'
 import { useDashboardData } from '../../hooks/useDashboardData'
 import { buildAIContext, computeCertSummary } from '../../lib/analytics'
 import { useObjections, useSimulations, useTopStats } from '../../api/queries'
-import { CERT_WINDOW } from '../../lib/certification'
+import { CERT_WINDOW, CERT_OFFICIAL_TOTAL } from '../../lib/certification'
 
 // ─────────────────────────────────────────────
 // Constants
@@ -204,7 +204,7 @@ export function AIAssistant() {
     () => computeCertSummary(certSimsQ.data ?? [], members ?? []),
     [certSimsQ.data, members],
   )
-  const { data: objStats } = useObjections()
+  const { data: objStats } = useObjections(dateFrom, dateTo)
   const topStatsQ = useTopStats()
 
   const [messages,      setMessages]      = useState<Message[]>([])
@@ -291,8 +291,7 @@ export function AIAssistant() {
         const incomplete  = lines.filter((l) => l.certifiedCount < l.memberCount)
         pageBlock =
           `CERTIFICATION PAGE — currently visible:\n` +
-          `Certified: ${certSummary.totalCertified}/${totalMem} members (${certPct}%)  |  Official platform: 157\n` +
-          `4-person gap vs official: 3 people lack a required sim ≥80 in the window (pre-window or never reached 80); 1 timing issue.\n` +
+          `Certified: ${certSummary.totalCertified}/${totalMem} members (${certPct}%)  |  Official platform: ${CERT_OFFICIAL_TOTAL}\n` +
           `\nAll 15 líneas:\n` +
           lines.map((l) => {
             const pct  = l.memberCount > 0 ? Math.round(l.certifiedCount / l.memberCount * 100) : 0
@@ -309,7 +308,7 @@ export function AIAssistant() {
           `LEADERBOARD PAGE — currently visible:\n` +
           `Total advisors ranked: ${all.length}\n` +
           `Top 25 (current period, sorted by avg score):\n` +
-          top25.map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%, pass ${u.passRate}%`).join('\n')
+          top25.map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%`).join('\n')
         const ts = topStatsQ.data?.stats
         if (ts) {
           pageBlock +=
@@ -323,17 +322,94 @@ export function AIAssistant() {
 
       if (path === '/simulations') {
         const dist = scoreDist ?? []
+
+        // Activity name lookup
+        const actName = (id: number) => activities?.find((a) => a.ID_Caso_de_Uso === id)?.Caso_de_Uso ?? `Sim#${id}`
+
+        // Per-round helper (avoids dynamic keyof issues)
+        const getPuntos = (s: typeof sims[0], r: 1|2|3|4|5) =>
+          [null, s.Puntos_1, s.Puntos_2, s.Puntos_3, s.Puntos_4, s.Puntos_5][r]
+        const getPregunta = (s: typeof sims[0], r: 1|2|3|4|5) =>
+          [null, s.Pregunta_1, s.Pregunta_2, s.Pregunta_3, s.Pregunta_4, s.Pregunta_5][r]
+        const getRespuesta = (s: typeof sims[0], r: 1|2|3|4|5) =>
+          [null, s.Respuesta_1, s.Respuesta_2, s.Respuesta_3, s.Respuesta_4, s.Respuesta_5][r]
+
+        // Full interaction detail for the 5 most-recent sims (= what's on screen)
+        const recentSims = [...sims]
+          .sort((a, b) => (b.Fecha_y_Hora ?? '').localeCompare(a.Fecha_y_Hora ?? ''))
+          .slice(0, 5)
+        const recentDetail = recentSims.map((s) => {
+          const pass = s.Diagnostico_Final?.toLowerCase() === 'si' ? 'PASS' : 'FAIL'
+          const interactions = ([1,2,3,4,5] as const).map((r) => {
+            const q   = getPregunta(s, r)
+            const a   = getRespuesta(s, r)
+            const pts = getPuntos(s, r)
+            if (!q) return null
+            const label = pts === null || pts === undefined || pts === 'No aplica'
+              ? 'unscored' : Number(pts) === 1 ? 'PASS' : 'FAIL'
+            return `    Interaction ${r} [${label}]:\n      Q: ${String(q).slice(0,200)}\n      A: ${String(a ?? '').slice(0,250)}`
+          }).filter(Boolean).join('\n')
+          return `${s.Usuario_Nombre} | ${actName(s.ID_Caso_de_Uso)} | ${s.Fecha_y_Hora?.slice(0,10)} | ${s.Calificacion}% ${pass}\n${interactions}`
+        }).join('\n\n---\n\n')
+
+        // Compact per-advisor log (= what's "behind" — full dataset)
+        const byAdvisor = new Map<string, typeof sims>()
+        for (const s of sims) {
+          const key = s.Usuario_Nombre ?? s.Usuario ?? 'Unknown'
+          if (!byAdvisor.has(key)) byAdvisor.set(key, [])
+          byAdvisor.get(key)!.push(s)
+        }
+        const advisorLog = Array.from(byAdvisor.entries()).map(([name, aS]) => {
+          const rows = aS.map((s) => {
+            const rounds = ([1,2,3,4,5] as const).map((r) => {
+              const v = getPuntos(s, r)
+              if (v === null || v === undefined || v === 'No aplica') return null
+              return `R${r}:${Number(v)}`
+            }).filter(Boolean).join(' ')
+            const p = s.Diagnostico_Final?.toLowerCase() === 'si' ? '✓' : '✗'
+            return `    ${s.Fecha_y_Hora?.slice(0,10)} | ${actName(s.ID_Caso_de_Uso)} | ${s.Calificacion}% ${p} | ${rounds}`
+          }).join('\n')
+          return `  ${name} (${aS.length} sims):\n${rows}`
+        }).join('\n\n')
+
         pageBlock =
-          `SIMULATIONS PAGE — currently visible:\n` +
-          `Total sessions in view: ${sims.length}\n` +
-          `Score distribution:\n` +
-          dist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')
+          `SIMULATIONS PAGE — ${sims.length} sessions (current filter):\n` +
+          `Score distribution:\n` + dist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n') +
+          `\n\nMOST RECENT 5 SESSIONS (on screen — full interaction text):\n` + recentDetail +
+          `\n\nALL ${sims.length} SESSIONS BY ADVISOR (full log for lookups):\n` + advisorLog
       }
 
       if (path === '/activities') {
         pageBlock =
-          `ACTIVITIES PAGE — currently visible:\n` +
+          `ACTIVITIES PAGE:\n` +
           (actStats ?? []).map((a) => `  ${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('\n')
+      }
+
+      if (path === '/coaching') {
+        const sorted = [...(userStats ?? [])].sort((a, b) => b.avgScore - a.avgScore)
+        const top    = sorted.slice(0, 15)
+        const bottom = [...sorted].reverse().slice(0, 15)
+        pageBlock =
+          `COACHING PAGE:\n` +
+          `Top 15 (Fortalezas — highest avg score):\n` +
+          top.map((u, i) => `  ${i+1}. ${u.name}: ${u.avgScore}% avg, ${u.count} sims`).join('\n') +
+          `\nBottom 15 (Áreas de Mejora — lowest avg score):\n` +
+          bottom.map((u, i) => `  ${i+1}. ${u.name}: ${u.avgScore}% avg, ${u.count} sims`).join('\n')
+      }
+
+      if (path === '/conversational') {
+        const getPts = (s: typeof sims[0], r: 1|2|3|4|5) =>
+          [null, s.Puntos_1, s.Puntos_2, s.Puntos_3, s.Puntos_4, s.Puntos_5][r]
+        const roundStats = ([1,2,3,4,5] as const).map((r) => {
+          const scored = sims.filter((s) => {
+            const v = getPts(s, r); return v !== null && v !== undefined && v !== 'No aplica'
+          })
+          const passed = scored.filter((s) => Number(getPts(s, r)) === 1).length
+          const pct = scored.length > 0 ? Math.round(passed / scored.length * 100) : 0
+          return `  Interaction ${r}: ${passed}/${scored.length} passed (${pct}%)`
+        }).join('\n')
+        pageBlock =
+          `CONVERSATIONAL INTELLIGENCE PAGE — per-interaction pass rates:\n` + roundStats
       }
 
       if (path === '/') {

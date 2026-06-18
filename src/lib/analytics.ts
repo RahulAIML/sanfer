@@ -1,5 +1,5 @@
 import type { Activity, Administrator, LineTag, Member, Simulation } from '../api/types'
-import { CERT_LINES } from './certification'
+import { CERT_LINES, CERT_MIN_SIMS, CERT_OFFICIAL_TOTAL, CERT_WINDOW } from './certification'
 
 // re-export so pages can import directly
 export type { Simulation }
@@ -572,10 +572,10 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
   }
 
   // Platform criterion: certified = completed ≥3 distinct cert simulators.
-  // Data confirms no user has 4+ distinct sims, so mine.size >= 3 = "all assigned done".
+  // Data confirms no user has 4+ distinct sims, so mine.size >= CERT_MIN_SIMS = "all assigned done".
   const certifiedSet = new Set<string>()
   for (const [email, mine] of bestScore) {
-    if (mine.size >= 3) certifiedSet.add(email)
+    if (mine.size >= CERT_MIN_SIMS) certifiedSet.add(email)
   }
 
   const byLine = CERT_LINES.map((line) => {
@@ -614,9 +614,32 @@ export function buildAIContext(
     ? `${dateFrom ?? '(default start)'} → ${dateTo ?? '(today)'}`
     : 'last 30 days (default)'
 
-  const top15    = userStats.slice(0, 15).map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%, pass ${u.passRate}%`).join('\n')
+  const allUsersBlock = userStats.length === 0 ? '  (no data)' :
+    userStats.map((u, i) => `  ${i + 1}. ${u.name}: avg ${u.avgScore}%, ${u.count} sims, best ${u.bestScore}%`).join('\n')
+
+  const bottomCoaching = userStats.length > 10
+    ? '\nBottom 10 (coaching priority, lowest avg score):\n' +
+      [...userStats].sort((a, b) => a.avgScore - b.avgScore).slice(0, 10)
+        .map((u) => `  ${u.name}: avg ${u.avgScore}%, ${u.count} sims`).join('\n')
+    : ''
+
   const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
   const recent10 = sims.slice(-10).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% ${s.Diagnostico_Final} (${s.Fecha_y_Hora?.substring(0, 10) ?? ''})`).join(', ')
+
+  const roundStats = (() => {
+    const rows = ([1, 2, 3, 4, 5] as const).map((r) => {
+      const key = `Puntos_${r}` as keyof Simulation
+      const scored = sims.filter((s) => {
+        const v = s[key]
+        return v !== null && v !== undefined && v !== 'No aplica'
+      })
+      if (scored.length === 0) return null
+      const passed = scored.filter((s) => Number(s[key]) === 1).length
+      const pct = Math.round(passed / scored.length * 100)
+      return `  Round ${r}: ${passed}/${scored.length} passed (${pct}%)`
+    }).filter(Boolean)
+    return rows.length ? rows.join('\n') : '  (no round data)'
+  })()
 
   const distBlock = (scoreDist && scoreDist.length)
     ? `\nScore Distribution:\n${scoreDist.map((b) => `  ${b.label}%: ${b.count} sessions`).join('\n')}`
@@ -626,19 +649,18 @@ export function buildAIContext(
     ? 'No objection data for current range.'
     : objections.map((o, i) => {
         const modelLine = o.model_answer
-          ? `\n   Ideal answer: "${o.model_answer.slice(0, 300)}"`
+          ? `\n   Ideal answer: "${o.model_answer.slice(0, 600)}"`
           : ''
         const repLines = o.top_answers && o.top_answers.length > 0
-          ? '\n   Sample rep responses:\n' + o.top_answers.map((r, ri) => `     ${ri + 1}. "${r.slice(0, 250)}"`).join('\n')
+          ? '\n   Sample rep responses:\n' + o.top_answers.map((r, ri) => `     ${ri + 1}. "${r.slice(0, 500)}"`).join('\n')
           : ''
         return `  ${i + 1}. "${o.objection_text}" — ${o.count}x, ${o.pass_rate}% pass rate${modelLine}${repLines}`
       }).join('\n\n')
 
   const certBlock = certSummary ? `
 CERTIFICATION ("Certificación Sanfer — Junio 2026"):
-Window: 2026-06-08 to 2026-06-22 | Rule: score >=80% on ALL 3 assigned simulators
-Total Certified: ${certSummary.totalCertified} (official platform: 157)
-Note: 4-person gap vs official is due to pre-window sessions and different platform scoring logic.
+Window: ${CERT_WINDOW.from} → ${CERT_WINDOW.to ?? 'today'} | Rule: completed ≥${CERT_MIN_SIMS} of the assigned simulators
+Total Certified: ${certSummary.totalCertified} (official platform: ${CERT_OFFICIAL_TOTAL})
 
 By línea:
 ${certSummary.byLine.map((l) => {
@@ -662,15 +684,18 @@ Date Range: ${dateLabel}
 ------------------------------------------------------------------
 Total Simulations: ${kpis.totalSimulations}
 Average Score: ${kpis.averageScore}%
-Pass Rate: ${kpis.passRate}% (${kpis.passCount} passed / ${kpis.failCount} failed)
 Active Advisors: ${kpis.activeAdvisors}
-Total Members: ${kpis.totalMembers} | Admins: ${kpis.totalAdmins} | Supervisors: ${kpis.totalSupervisors}
+Total Members (registered): ${kpis.totalMembers} | Admins: ${kpis.totalAdmins} | Supervisors: ${kpis.totalSupervisors}
 Best Score: ${kpis.bestScore}% | Lowest Score: ${kpis.worstScore}%
 ${distBlock}
-Top 15 Performers (current period):
-${top15}
+Per-Round Scores (rounds 1–5, scored=1 means rep answered correctly):
+${roundStats}
 
-Activity Breakdown (all activities):
+All ${userStats.length} Advisors Ranked by Avg Score (current period):
+${allUsersBlock}
+${bottomCoaching}
+
+Activity Breakdown (sessions per activity):
 ${actList}
 
 Recent Sessions (last 10):

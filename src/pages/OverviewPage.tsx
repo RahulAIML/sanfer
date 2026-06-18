@@ -405,11 +405,11 @@ export default function OverviewPage() {
                     }`}>{i + 1}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-slate-200 truncate">{u.name}</p>
-                      <p className="text-[11px] text-slate-600">{u.count} {t('simulations_count')}</p>
+                      <p className="text-[11px] text-slate-600">{u.count} {es ? (u.count === 1 ? 'simulación' : 'simulaciones') : (u.count === 1 ? 'simulation' : 'simulations')}</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="text-sm font-semibold text-slate-100">{u.avgScore}%</p>
-                      <p className="text-[11px] text-slate-600">{u.passRate}% {t('pass')}</p>
+                      <p className="text-[11px] text-slate-500">{t('col_best')}: {u.bestScore}%</p>
                     </div>
                   </div>
                 ))}
@@ -457,11 +457,19 @@ const KpiCard = memo(function KpiCard({
   color: 'accent' | 'violet' | 'pass' | 'indigo'
   spark?: number[]
 }) {
-  const palette = {
+  const theme = useAppStore((s) => s.theme)
+  const isDark = theme === 'dark'
+
+  const palette = isDark ? {
     accent: { text: '#00D4FF', border: 'rgba(0,212,255,0.25)',   top: '#00D4FF', glow: 'rgba(0,212,255,0.06)',   fill: 'rgba(0,212,255,0.15)'   },
     violet: { text: '#A855F7', border: 'rgba(168,85,247,0.25)',  top: '#A855F7', glow: 'rgba(168,85,247,0.06)',  fill: 'rgba(168,85,247,0.15)'  },
     pass:   { text: '#10F5A0', border: 'rgba(16,245,160,0.25)',  top: '#10F5A0', glow: 'rgba(16,245,160,0.06)',  fill: 'rgba(16,245,160,0.15)'  },
     indigo: { text: '#818CF8', border: 'rgba(129,140,248,0.25)', top: '#818CF8', glow: 'rgba(129,140,248,0.06)', fill: 'rgba(129,140,248,0.15)' },
+  } : {
+    accent: { text: '#0284c7', border: 'rgba(2,132,199,0.3)',    top: '#0284c7', glow: 'rgba(2,132,199,0.07)',   fill: 'rgba(2,132,199,0.12)'   },
+    violet: { text: '#7c3aed', border: 'rgba(124,58,237,0.3)',   top: '#7c3aed', glow: 'rgba(124,58,237,0.07)',  fill: 'rgba(124,58,237,0.12)'  },
+    pass:   { text: '#059669', border: 'rgba(5,150,105,0.3)',    top: '#059669', glow: 'rgba(5,150,105,0.07)',   fill: 'rgba(5,150,105,0.12)'   },
+    indigo: { text: '#4f46e5', border: 'rgba(79,70,229,0.3)',    top: '#4f46e5', glow: 'rgba(79,70,229,0.07)',   fill: 'rgba(79,70,229,0.12)'   },
   }
   const p = palette[color]
   // stable gradient ID — label chars are unique per card

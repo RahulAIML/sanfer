@@ -97,7 +97,6 @@ export default function BusinessLinesPage() {
     fullName: l.name,
     simCount: l.simCount,
     avgScore: l.avgScore,
-    passRate: l.passRate,
   }))
   // ~30px per bar keeps labels readable regardless of how many lines exist
   const barChartHeight = Math.max(256, chartData.length * 30 + 24)
@@ -105,7 +104,6 @@ export default function BusinessLinesPage() {
   const radarData = lineStats.slice(0, 6).map((l) => ({
     line: l.name.length > 12 ? l.name.slice(0, 12) + '…' : l.name,
     avgScore: l.avgScore,
-    passRate: l.passRate,
   }))
 
   return (
@@ -152,7 +150,7 @@ export default function BusinessLinesPage() {
                 {bestLine?.name ?? '—'}
               </p>
               <p className="text-[11px] text-slate-600 mt-1">
-                {bestLine ? `${bestLine.avgScore}% avg · ${bestLine.passRate}% pass` : '—'}
+                {bestLine ? `${bestLine.avgScore}% avg` : '—'}
               </p>
             </div>
             <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-violet/10 shrink-0 ml-2">
@@ -229,7 +227,6 @@ export default function BusinessLinesPage() {
                 <PolarGrid stroke={c.tickMuted} strokeOpacity={0.3} />
                 <PolarAngleAxis dataKey="line" tick={{ fontSize: 10, fill: c.tick }} />
                 <Radar name={es ? 'Puntaje' : 'Score'} dataKey="avgScore" stroke={COLORS.accent} fill={COLORS.accent} fillOpacity={0.15} strokeWidth={2} />
-                <Radar name={es ? 'Aprobación' : 'Pass Rate'} dataKey="passRate" stroke={COLORS.pass} fill={COLORS.pass} fillOpacity={0.1} strokeWidth={2} />
                 <Tooltip content={<LineBarTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} />
               </RadarChart>
             </ResponsiveContainer>
@@ -238,10 +235,6 @@ export default function BusinessLinesPage() {
             <div className="flex items-center gap-1.5 text-xs text-slate-400">
               <span className="w-2.5 h-2.5 rounded-full bg-accent" />
               {es ? 'Puntaje Promedio' : 'Avg Score'}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-success" />
-              {es ? 'Tasa Aprobación' : 'Pass Rate'}
             </div>
           </div>
         </div>
@@ -260,7 +253,6 @@ export default function BusinessLinesPage() {
                 <th className="text-right text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_members')}</th>
                 <th className="text-right text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_sims')}</th>
                 <th className="text-right text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_avg')}</th>
-                <th className="text-right text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_pass')}</th>
                 <th className="text-right text-xs text-slate-500 font-medium px-4 py-3 whitespace-nowrap">{t('lines_col_users')}</th>
               </tr>
             </thead>
@@ -297,14 +289,6 @@ export default function BusinessLinesPage() {
                           line.avgScore >= 60 ? 'text-accent' : 'text-danger'
                         }`}>{line.avgScore}%</span>
                       </span>
-                    ) : <span className="text-slate-700">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    {line.simCount > 0 ? (
-                      <span className={`font-medium ${
-                        line.passRate >= 70 ? 'text-success' :
-                        line.passRate >= 50 ? 'text-warning' : 'text-danger'
-                      }`}>{line.passRate}%</span>
                     ) : <span className="text-slate-700">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right text-slate-400">{line.activeUsers || '—'}</td>

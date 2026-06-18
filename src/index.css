@@ -47,6 +47,17 @@
     color: #fff;
   }
 
+  :focus-visible {
+    outline: 2px solid rgba(59, 130, 246, 0.6);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Smooth table row hover transition */
+  tbody tr {
+    transition: background-color 0.12s ease;
+  }
+
   /* Custom scrollbar — webkit */
   ::-webkit-scrollbar {
     width: 6px;
@@ -98,12 +109,20 @@ html:not(.dark) .text-slate-400 { color: #64748b; }
     @apply bg-card border rounded-xl;
     border-color: rgb(var(--color-line) / 0.6);
   }
+  html:not(.dark) .card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  }
   .card-interactive {
     @apply card cursor-pointer transition-all duration-200 hover:bg-card-hover;
     border-color: rgb(var(--color-line) / 0.6);
   }
   .card-interactive:hover {
     border-color: rgb(var(--color-line) / 1);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+  html:not(.dark) .card-interactive:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   }
   .badge {
     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium;
@@ -233,7 +252,7 @@ html:not(.dark) .text-slate-400 { color: #64748b; }
 }
 
 .recharts-text {
-  fill: #334155 !important;
+  fill: #475569 !important;
   font-size: 11px !important;
   font-family: 'Inter', sans-serif !important;
 }

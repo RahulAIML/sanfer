@@ -91,7 +91,6 @@ export default function CoachingPage() {
               <p>{t('coaching_tip_activities')} {weakActivities.map((a) => a.name).join(', ')}.</p>
             )}
             <p>{t('coaching_tip_avg')} {kpis.averageScore}{t('coaching_tip_avg2')} {Math.min(100, kpis.averageScore + 10)}%.</p>
-            <p>{t('coaching_tip_pass')} {kpis.passRate}{t('coaching_tip_pass2')}</p>
           </div>
         </div>
       </div>
