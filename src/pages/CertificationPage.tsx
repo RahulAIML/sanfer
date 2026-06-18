@@ -90,11 +90,11 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified: line member who completed ≥3 cert sims (platform criterion — any combination).
+      // Certified: line member who completed all 3 sims assigned to this specific line.
       const certified: CertifiedAdvisor[] = []
       for (const email of lineMembers) {
         const mine = bestScore.get(email)
-        if (mine && mine.size >= CERT_MIN_SIMS) {
+        if (mine && line.sims.every((sim) => mine.has(sim.saexId))) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
@@ -127,15 +127,8 @@ export default function CertificationPage() {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
     const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
-    // Platform criterion: any user with ≥3 distinct cert sims = certified (not line-restricted).
-    const byUser = new Map<string, Set<number>>()
-    for (const s of sims) {
-      const email = (s.Usuario ?? '').toLowerCase()
-      if (!email) continue
-      if (!byUser.has(email)) byUser.set(email, new Set())
-      byUser.get(email)!.add(s.ID_Caso_de_Uso)
-    }
-    const certifiedPeople = [...byUser.values()].filter((m) => m.size >= CERT_MIN_SIMS).length
+    // Certified = completed all 3 assigned sims (per-line, any score).
+    const certifiedPeople = lines.reduce((sum, l) => sum + l.certified.length, 0)
     return {
       expected,
       completed,
