@@ -131,7 +131,7 @@ export async function fetchTopStats(signal?: AbortSignal): Promise<TopStatsRespo
 export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse> {
   const resp = await fetchJSON<AdminsResponse>(`${BRIDGE_BASE}/?action=org.admins`, signal)
   const data = (resp.data ?? [])
-    .filter((a) => a.rpa_profile_type !== 'dev' && !isInternalEmail(a.rpa_email))
+    .filter((a) => a.rpa_profile_type !== 'dev')
     .map((a) => ({ ...a, rpa_full_name: decodeEntities(a.rpa_full_name) }))
   return { ...resp, data, count: data.length }
 }
