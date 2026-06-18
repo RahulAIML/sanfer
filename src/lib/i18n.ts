@@ -279,7 +279,7 @@ const t = {
     cert_legend: 'Avance = ejercicios completados / (asesores × 3 simuladores asignados) dentro del período de certificación.',
     cert_kpi_certified: 'Certificados',
     cert_certified_title: 'Asesores Certificados',
-    cert_certified_def: 'Certificado = completó los 3 simuladores asignados durante el período.',
+    cert_certified_def: 'Certificado = completó 3 o más simuladores de la lista de certificación durante el período.',
     cert_certified_none: 'Aún no hay asesores certificados en el período.',
   },
   en: {
@@ -549,7 +549,7 @@ const t = {
     cert_legend: 'Progress = completed exercises / (advisors × 3 assigned simulators) within the certification period.',
     cert_kpi_certified: 'Certified',
     cert_certified_title: 'Certified Advisors',
-    cert_certified_def: 'Certified = completed all 3 assigned simulators during the period.',
+    cert_certified_def: 'Certified = completed 3 or more simulators from the certification list during the period.',
     cert_certified_none: 'No advisors certified in the period yet.',
   },
 } as const

@@ -570,20 +570,10 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
     mine.set(s.ID_Caso_de_Uso, Math.max(mine.get(s.ID_Caso_de_Uso) ?? 0, s.Calificacion))
   }
 
-  // Per-line criterion: certified = completed all 3 sims assigned to their specific line.
-  const emailToTagId = new Map<string, number>()
-  for (const m of members) {
-    if (!m.mb_user || !m.mb_idTag1) continue
-    emailToTagId.set(m.mb_user.toLowerCase(), m.mb_idTag1)
-  }
-  const tagIdToSims = new Map<number, number[]>()
-  for (const line of CERT_LINES) {
-    tagIdToSims.set(line.tagId, line.sims.map((s) => s.saexId))
-  }
+  // Platform criterion: any user with ≥CERT_MIN_SIMS distinct cert sims = certified.
   const certifiedSet = new Set<string>()
   for (const [email, mine] of bestScore) {
-    const required = tagIdToSims.get(emailToTagId.get(email) ?? 0)
-    if (required?.every((id) => mine.has(id))) certifiedSet.add(email)
+    if (mine.size >= CERT_MIN_SIMS) certifiedSet.add(email)
   }
 
   const byLine = CERT_LINES.map((line) => {
