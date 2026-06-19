@@ -37,7 +37,6 @@ export const Shell = memo(function Shell({ children }: { children: React.ReactNo
 
   return (
     <div className="flex h-dvh overflow-hidden bg-bg">
-      {/* Mobile overlay — sidebar */}
       {mobileMenuOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -49,7 +48,7 @@ export const Shell = memo(function Shell({ children }: { children: React.ReactNo
         <TopBar />
         <LoadingBanner />
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="p-2 sm:p-4 lg:p-6 pb-6 max-w-[1600px] mx-auto page-fade">
+          <div className="p-3 sm:p-5 lg:p-7 pb-8 max-w-[1600px] mx-auto page-fade">
             {children}
           </div>
         </main>

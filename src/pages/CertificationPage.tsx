@@ -14,7 +14,7 @@ import {
 interface CertifiedAdvisor {
   email: string
   name: string
-  scores: number[]   // best score per assigned sim, in slot order
+  scores: number[]  // best score per assigned sim slot, for display only
 }
 
 interface LineProgress {
@@ -97,8 +97,8 @@ export default function CertificationPage() {
         if (mine && line.sims.every((sim) => mine.has(sim.saexId))) {
           certified.push({
             email,
-            name:   normalizeName(advisorName.get(email) ?? email),
-            scores: [...mine.values()],
+            name: normalizeName(advisorName.get(email) ?? email),
+            scores: line.sims.map((sim) => mine.get(sim.saexId) ?? 0),
           })
         }
       }
@@ -229,14 +229,14 @@ export default function CertificationPage() {
                   <span className="text-[10px] text-slate-600">({line.jefe})</span>
                   <span className="text-[10px] font-bold text-success tabular-nums">{line.certified.length}</span>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   {line.certified.map((c) => (
                     <span
                       key={c.email}
-                      className="inline-flex items-center gap-1.5 text-xs bg-success/5 border border-success/20 text-slate-300 rounded-full pl-2.5 pr-1.5 py-1"
+                      className="inline-flex items-center gap-1.5 text-xs bg-success/5 border border-success/20 text-slate-300 rounded-full pl-2.5 pr-1 py-0.5"
                     >
                       {c.name}
-                      <span className="text-[10px] font-semibold text-success bg-success/10 rounded-full px-1.5 py-0.5 tabular-nums">
+                      <span className="text-[10px] font-bold text-success bg-success/10 rounded-full px-1.5 py-0.5 tabular-nums">
                         {c.scores.join(' · ')}
                       </span>
                     </span>
