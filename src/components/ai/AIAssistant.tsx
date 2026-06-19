@@ -7,7 +7,7 @@ import { useAppStore } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { useDashboardData } from '../../hooks/useDashboardData'
 import { buildAIContext, computeCertSummary } from '../../lib/analytics'
-import { useObjections, useSimulations, useTopStats } from '../../api/queries'
+import { useCertCount, useObjections, useSimulations, useTopStats } from '../../api/queries'
 import { CERT_WINDOW, CERT_OFFICIAL_TOTAL } from '../../lib/certification'
 
 // ─────────────────────────────────────────────
@@ -205,7 +205,8 @@ export function AIAssistant() {
     [certSimsQ.data, members],
   )
   const { data: objStats } = useObjections(dateFrom, dateTo)
-  const topStatsQ = useTopStats()
+  const topStatsQ    = useTopStats()
+  const { data: dbCertCount } = useCertCount()
 
   const [messages,      setMessages]      = useState<Message[]>([])
   const [input,         setInput]         = useState('')
@@ -287,11 +288,12 @@ export function AIAssistant() {
       if (path === '/certification' && certSummary) {
         const lines       = certSummary.byLine
         const totalMem    = lines.reduce((s, l) => s + l.memberCount, 0)
-        const certPct     = totalMem > 0 ? Math.round(certSummary.totalCertified / totalMem * 100) : 0
+        const certCount   = dbCertCount ?? certSummary.totalCertified
+        const certPct     = totalMem > 0 ? Math.round(certCount / totalMem * 100) : 0
         const incomplete  = lines.filter((l) => l.certifiedCount < l.memberCount)
         pageBlock =
           `CERTIFICATION PAGE — currently visible:\n` +
-          `Certified: ${certSummary.totalCertified}/${totalMem} members (${certPct}%)  |  Official platform: ${CERT_OFFICIAL_TOTAL}\n` +
+          `Certified: ${certCount}/${totalMem} members (${certPct}%)  |  Official platform: ${CERT_OFFICIAL_TOTAL}\n` +
           `\nAll 15 líneas:\n` +
           lines.map((l) => {
             const pct  = l.memberCount > 0 ? Math.round(l.certifiedCount / l.memberCount * 100) : 0
