@@ -235,6 +235,15 @@ export default function ConversationalPage() {
       ? raw.slice().sort((a, b) => a.pass_rate - b.pass_rate)   // worst first
       : raw.slice().sort((a, b) => b.pass_rate - a.pass_rate)   // best first
   }, [objQ.data, objSortAsc])
+
+  const hardest3 = useMemo(
+    () => (objQ.data ?? []).slice().sort((a, b) => a.pass_rate - b.pass_rate).slice(0, 3),
+    [objQ.data],
+  )
+  const easiest3 = useMemo(
+    () => (objQ.data ?? []).slice().sort((a, b) => b.pass_rate - a.pass_rate).slice(0, 3),
+    [objQ.data],
+  )
   // ── End of hook declarations ─────────────────────────────────────────────────
 
   if (isLoading) {
@@ -452,6 +461,44 @@ export default function ConversationalPage() {
               </button>
             )}
           </div>
+
+          {/* Hardest / Easiest summary */}
+          {!objQ.isLoading && !objQ.isError && hardest3.length > 0 && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="card p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <TrendingDown className="w-3.5 h-3.5 text-danger" />
+                  <span className="text-[11px] font-semibold text-danger uppercase tracking-wider">
+                    {es ? 'Más Difíciles' : 'Hardest'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {hardest3.map((obj) => (
+                    <div key={obj.objection_text} className="flex items-start gap-2">
+                      <span className="text-[12px] font-bold text-danger tabular-nums w-8 shrink-0 pt-0.5">{obj.pass_rate}%</span>
+                      <span className="text-[11px] text-slate-400 leading-snug min-w-0">{obj.objection_text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="card p-3">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <TrendingUp className="w-3.5 h-3.5 text-success" />
+                  <span className="text-[11px] font-semibold text-success uppercase tracking-wider">
+                    {es ? 'Más Fáciles' : 'Easiest'}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {easiest3.map((obj) => (
+                    <div key={obj.objection_text} className="flex items-start gap-2">
+                      <span className="text-[12px] font-bold text-success tabular-nums w-8 shrink-0 pt-0.5">{obj.pass_rate}%</span>
+                      <span className="text-[11px] text-slate-400 leading-snug min-w-0">{obj.objection_text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {objQ.isLoading ? (
             <div className="card p-5 h-48 skeleton rounded-xl" />

@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
+import { fetchActivities, fetchAdmins, fetchCertCount, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
 import type { MembersResponse } from './types'
 import { resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -131,6 +131,16 @@ export function useObjections(dateFrom: string | null = null, dateTo: string | n
     gcTime:          GC.simulations,
     placeholderData: keepPreviousData,
     select:          (res) => res.data,
+  })
+}
+
+/** Authoritative certified count from the platform DB — same source as the platform dashboard. */
+export function useCertCount() {
+  return useQuery({
+    queryKey:  ['certCount'],
+    queryFn:   ({ signal }) => fetchCertCount(signal),
+    staleTime: STALE.simulations,
+    gcTime:    GC.simulations,
   })
 }
 

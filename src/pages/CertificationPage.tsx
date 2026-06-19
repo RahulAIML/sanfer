@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSimulations, useMembers } from '../api/queries'
+import { useSimulations, useMembers, useCertCount } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
@@ -39,6 +39,7 @@ export default function CertificationPage() {
   const simsQ    = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
   const membersQ = useMembers()
 
+  const certCountQ = useCertCount()
   const isLoading = simsQ.isLoading || membersQ.isLoading
   const sims      = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
   const members   = membersQ.data ?? []
@@ -123,18 +124,8 @@ export default function CertificationPage() {
     })
   }, [sims, members])
 
-  // Platform criterion: any user with >= 3 distinct cert sims completed = certified.
-  // sims here are already filtered to cert-sim IDs (the bridge queries IDS_CSV).
-  const globalCertified = useMemo(() => {
-    const userDone = new Map<string, Set<number>>()
-    for (const s of sims) {
-      const email = (s.Usuario ?? '').toLowerCase()
-      if (!email) continue
-      if (!userDone.has(email)) userDone.set(email, new Set())
-      userDone.get(email)!.add(s.ID_Caso_de_Uso)
-    }
-    return [...userDone.values()].filter((done) => done.size >= 3).length
-  }, [sims])
+  // DB-authoritative certified count — same query the platform itself uses.
+  const globalCertified = certCountQ.data ?? 0
 
   const totals = useMemo(() => {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)

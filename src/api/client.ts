@@ -141,3 +141,9 @@ export async function fetchObjections(
   const qs = `action=objections.demorp6&ids=${IDS_CSV}&date_from=${effFrom}&date_to=${effTo}`
   return fetchJSON<ObjectionsResponse>(`${BRIDGE_BASE}/?${qs}`, signal)
 }
+
+/** Authoritative certified count straight from the platform DB (roleplay_demorp6). */
+export async function fetchCertCount(signal?: AbortSignal): Promise<number> {
+  const data = await fetchJSON<{ certified: number }>(`${BRIDGE_BASE}/?action=cert.count`, signal)
+  return data.certified
+}

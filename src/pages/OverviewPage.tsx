@@ -3,12 +3,11 @@ import { useDashboardData } from '../hooks/useDashboardData'
 import { useIntersectionObserver } from '../hooks/useIntersectionObserver'
 import {
   computeKPIs, computeActivityStats, computeUserStats, computeScoreDistribution, normalizeName,
-  computeCertSummary,
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { CERT_TOTAL_SLOTS, CERT_WINDOW } from '../lib/certification'
-import { useSimulations, useTopStats } from '../api/queries'
+import { CERT_TOTAL_SLOTS } from '../lib/certification'
+import { useSimulations, useTopStats, useCertCount } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
@@ -73,19 +72,12 @@ export default function OverviewPage() {
     refetch,
   } = useDashboardData()
 
-  // Cert % — uses the fixed CERT_WINDOW dates (independent of global date filter).
-  // TanStack Query shares this cache with CertificationPage when both are open.
-  const certSimsQ    = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
-  const certSummary  = useMemo(
-    () => certSimsQ.data && members.length
-      ? computeCertSummary(certSimsQ.data, members)
-      : null,
-    [certSimsQ.data, members],
-  )
+  // Cert % — DB-authoritative count divided by total members.
+  const { data: dbCertCount } = useCertCount()
   const certPct = useMemo(() => {
-    if (!certSummary || !kpis?.totalMembers) return null
-    return Math.round((certSummary.totalCertified / kpis.totalMembers) * 100)
-  }, [certSummary, kpis?.totalMembers])
+    if (dbCertCount == null || !kpis?.totalMembers) return null
+    return Math.round((dbCertCount / kpis.totalMembers) * 100)
+  }, [dbCertCount, kpis?.totalMembers])
 
   // Skeleton only while sims are loading — activities are cached 24 h and arrive
   // almost immediately on any warm session.
@@ -487,29 +479,30 @@ const KpiCard = memo(function KpiCard({
 
   return (
     <div
-      className="card p-4 sm:p-5 relative overflow-hidden"
+      className="card p-4 sm:p-5 relative overflow-hidden flex flex-col min-h-[160px]"
       style={{ borderColor: p.border, background: `linear-gradient(135deg, ${p.glow} 0%, transparent 60%)` }}
     >
       {/* Top accent bar */}
       <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: p.top }} />
 
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{label}</p>
 
-      <div className="flex items-end justify-between gap-2 mb-1">
-        <p className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight tabular-nums leading-none" style={{ color: p.text }}>
+      <div className="flex items-end justify-between gap-2">
+        <p className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums leading-none" style={{ color: p.text }}>
           {value}
         </p>
         {delta !== null && (
-          <span className={`text-xs font-bold mb-1 shrink-0 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
+          <span className={`text-xs font-bold mb-0.5 shrink-0 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
             {delta > 0 ? '↑' : '↓'}{Math.abs(delta)}%
           </span>
         )}
       </div>
 
-      <p className="text-[11px] text-slate-600 truncate">{sub}</p>
+      <p className="text-[11px] text-slate-600 truncate mt-1 mb-auto">{sub}</p>
 
-      {spark && spark.length > 2 && (
-        <div className="h-12 mt-3 -mx-2 -mb-1">
+      {/* Sparkline slot — always same height to keep all cards equal */}
+      <div className="h-12 mt-3 -mx-2 -mb-1">
+        {spark && spark.length > 2 && (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={spark.map((v, i) => ({ v, i }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
               <defs>
@@ -526,8 +519,8 @@ const KpiCard = memo(function KpiCard({
               />
             </AreaChart>
           </ResponsiveContainer>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 })
