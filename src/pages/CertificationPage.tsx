@@ -123,20 +123,30 @@ export default function CertificationPage() {
     })
   }, [sims, members])
 
+  // Platform criterion: any user with >= 3 distinct cert sims completed = certified.
+  // sims here are already filtered to cert-sim IDs (the bridge queries IDS_CSV).
+  const globalCertified = useMemo(() => {
+    const userDone = new Map<string, Set<number>>()
+    for (const s of sims) {
+      const email = (s.Usuario ?? '').toLowerCase()
+      if (!email) continue
+      if (!userDone.has(email)) userDone.set(email, new Set())
+      userDone.get(email)!.add(s.ID_Caso_de_Uso)
+    }
+    return [...userDone.values()].filter((done) => done.size >= 3).length
+  }, [sims])
+
   const totals = useMemo(() => {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
     const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
-    // Certified = completed all 3 assigned sims (per-line, any score).
-    const certifiedPeople = lines.reduce((sum, l) => sum + l.certified.length, 0)
     return {
       expected,
       completed,
       passed,
-      certifiedPeople,
       sessions: sims.length,
-      pct:      expected ? Math.round((completed / expected) * 100) : 0,
-      passPct:  completed ? Math.round((passed / completed) * 100) : 0,
+      pct:     expected ? Math.round((completed / expected) * 100) : 0,
+      passPct: completed ? Math.round((passed / completed) * 100) : 0,
     }
   }, [lines, sims])
 
@@ -191,7 +201,7 @@ export default function CertificationPage() {
         <CertKpi icon={Layers}       label={t('cert_kpi_exercises')} value={CERT_TOTAL_SLOTS} />
         <CertKpi icon={Users}        label={t('cert_kpi_jefes')}     value={CERT_JEFES.length} />
         <CertKpi icon={PlayCircle}   label={t('cert_kpi_sessions')}  value={totals.sessions} />
-        <CertKpi icon={Award}        label={t('cert_kpi_certified')} value={totals.certifiedPeople} highlight />
+        <CertKpi icon={Award}        label={t('cert_kpi_certified')} value={globalCertified} highlight />
       </div>
 
       {/* Global progress */}
@@ -214,11 +224,11 @@ export default function CertificationPage() {
           <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
             <Award className="w-4 h-4 text-success" />
             {t('cert_certified_title')}
-            <span className="text-success font-bold tabular-nums">{totals.certifiedPeople}</span>
+            <span className="text-success font-bold tabular-nums">{globalCertified}</span>
           </h3>
         </div>
         <p className="text-[11px] text-slate-600 mb-4">{t('cert_certified_def')}</p>
-        {totals.certifiedPeople === 0 ? (
+        {globalCertified === 0 ? (
           <p className="text-sm text-slate-500">{t('cert_certified_none')}</p>
         ) : (
           <div className="space-y-4">

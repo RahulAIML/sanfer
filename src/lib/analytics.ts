@@ -549,9 +549,25 @@ export interface CertSummary {
   byLine:         CertLineSummary[]
 }
 
-// Completion-only: certified = has attempted every assigned sim (CTO confirmed)
+// Platform criterion: any user who completed >= 3 distinct cert sims = certified.
+// No line membership required, no specific sim assignment required — any 3 from the pool.
 
 export function computeCertSummary(certSims: Simulation[], members: Member[]): CertSummary {
+  const allCertIds = new Set(CERT_LINES.flatMap((l) => l.sims.map((s) => s.saexId)))
+
+  // Count distinct cert sims completed per user
+  const userDone = new Map<string, Set<number>>()
+  for (const s of certSims) {
+    const email = (s.Usuario ?? '').toLowerCase()
+    if (!email || !allCertIds.has(s.ID_Caso_de_Uso)) continue
+    if (!userDone.has(email)) userDone.set(email, new Set())
+    userDone.get(email)!.add(s.ID_Caso_de_Uso)
+  }
+  const certifiedEmails = new Set(
+    [...userDone.entries()].filter(([, done]) => done.size >= 3).map(([e]) => e),
+  )
+
+  // Per-line breakdown: line members who are among the certified set
   const membersByLine = new Map<number, Set<string>>()
   for (const m of members) {
     if (m.mb_status !== 1 || !m.mb_idTag1 || !m.mb_user) continue
@@ -560,39 +576,13 @@ export function computeCertSummary(certSims: Simulation[], members: Member[]): C
     if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, new Set())
     membersByLine.get(m.mb_idTag1)!.add(email)
   }
-
-  const bestScore = new Map<string, Map<number, number>>()
-  for (const s of certSims) {
-    const email = (s.Usuario ?? '').toLowerCase()
-    if (!email) continue
-    if (!bestScore.has(email)) bestScore.set(email, new Map())
-    const mine = bestScore.get(email)!
-    mine.set(s.ID_Caso_de_Uso, Math.max(mine.get(s.ID_Caso_de_Uso) ?? 0, s.Calificacion))
-  }
-
-  // Certified = completed all 3 sims assigned to their specific line (per-line, any score).
-  const tagIdToSims = new Map<number, number[]>()
-  for (const line of CERT_LINES) {
-    tagIdToSims.set(line.tagId, line.sims.map((s) => s.saexId))
-  }
-  const emailToTagId = new Map<string, number>()
-  for (const m of members) {
-    if (!m.mb_user || !m.mb_idTag1) continue
-    emailToTagId.set(m.mb_user.toLowerCase(), m.mb_idTag1)
-  }
-  const certifiedSet = new Set<string>()
-  for (const [email, mine] of bestScore) {
-    const required = tagIdToSims.get(emailToTagId.get(email) ?? 0)
-    if (required?.every((id) => mine.has(id))) certifiedSet.add(email)
-  }
-
   const byLine = CERT_LINES.map((line) => {
     const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
-    const certifiedCount = [...lineMembers].filter((e) => certifiedSet.has(e)).length
+    const certifiedCount = [...lineMembers].filter((e) => certifiedEmails.has(e)).length
     return { name: line.name, jefe: line.jefe, certifiedCount, memberCount: lineMembers.size }
   })
 
-  return { totalCertified: certifiedSet.size, byLine }
+  return { totalCertified: certifiedEmails.size, byLine }
 }
 
 // ─────────────────────────────────────────────
