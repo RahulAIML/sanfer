@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useAppStore } from '../../store'
+import type { Language } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { cn } from '../../lib/cn'
 
@@ -60,7 +61,7 @@ const NavContent = memo(function NavContent({
 }: {
   collapsed: boolean
   onNavClick?: () => void
-  language: string
+  language: Language
 }) {
   const t = useTranslation(language)
   const es = language === 'es'
