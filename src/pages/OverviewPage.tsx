@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, ReferenceLine,
+  BarChart, Bar, ReferenceLine,
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { useChartColors } from '../lib/chartTheme'
@@ -196,18 +196,6 @@ export default function OverviewPage() {
       .map(([, users]) => users.size)
   }, [filteredSims])
 
-  // Pass/Fail donut data
-  const passCount = useMemo(
-    () => filteredSims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length,
-    [filteredSims],
-  )
-  const failCount  = filteredSims.length - passCount
-  const passRatePct = filteredSims.length > 0 ? Math.round(passCount / filteredSims.length * 100) : 0
-  const donutData  = useMemo(() => [
-    { name: es ? 'Aprobadas' : 'Passed', value: passCount,  fill: COLORS.pass },
-    { name: es ? 'Reprobadas' : 'Failed', value: failCount, fill: COLORS.fail },
-  ], [passCount, failCount, es])
-
   // Deltas from sparkline trends
   const simsDelta     = useMemo(() => computeDelta(simsSparkData),     [simsSparkData])
   const scoreDelta    = useMemo(() => computeDelta(scoreSparkData),     [scoreSparkData])
@@ -370,76 +358,33 @@ export default function OverviewPage() {
         <KpiCard label={t('kpi_total_members')}    value={kpis?.totalMembers ?? '…'}               sub={t('sub_registered')}        icon={Users}       iconBg="bg-slate-100 dark:bg-slate-800"    iconColor="text-slate-600 dark:text-slate-400" />
       </div>
 
-      {/* Score Trend + Pass/Fail Donut */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="card p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
-            {anyFilterActive && (
-              <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-                {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
-              </span>
-            )}
-          </div>
-          <div className="h-48 sm:h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.25} />
-                    <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
-                <YAxis domain={[0, 100]} />
-                <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
-                <ReferenceLine y={75} stroke="#DC2626" strokeDasharray="5 3" strokeOpacity={0.6} label={{ value: es ? 'Meta 75%' : 'Goal 75%', position: 'insideTopRight', fontSize: 9, fill: '#DC2626', opacity: 0.8 }} />
-                <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} isAnimationActive={false} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Score Trend */}
+      <div className="card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
+          {anyFilterActive && (
+            <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+              {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
+            </span>
+          )}
         </div>
-
-        {/* Pass / Fail donut */}
-        <div className="card p-5 flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-200 mb-3">
-            {es ? 'Aprobadas / Reprobadas' : 'Passed / Failed'}
-          </h3>
-          <div className="flex-1 relative flex items-center justify-center">
-            <ResponsiveContainer width="100%" height={170}>
-              <PieChart>
-                <Pie
-                  data={donutData}
-                  cx="50%" cy="50%"
-                  innerRadius={52} outerRadius={72}
-                  dataKey="value"
-                  startAngle={90} endAngle={-270}
-                  strokeWidth={0}
-                >
-                  {donutData.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{passRatePct}%</p>
-              <p className="text-[11px] text-slate-500">{es ? 'Aprob.' : 'Pass rate'}</p>
-            </div>
-          </div>
-          <div className="flex justify-center gap-5 mt-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS.pass }} />
-              <span className="text-xs text-slate-500">{es ? 'Aprobadas' : 'Passed'}</span>
-              <span className="text-xs font-semibold text-slate-300 tabular-nums">{passCount}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS.fail }} />
-              <span className="text-xs text-slate-500">{es ? 'Reprobadas' : 'Failed'}</span>
-              <span className="text-xs font-semibold text-slate-300 tabular-nums">{failCount}</span>
-            </div>
-          </div>
+        <div className="h-48 sm:h-72">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
+              <YAxis domain={[0, 100]} />
+              <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
+              <ReferenceLine y={75} stroke="#DC2626" strokeDasharray="5 3" strokeOpacity={0.6} label={{ value: es ? 'Meta 75%' : 'Goal 75%', position: 'insideTopRight', fontSize: 9, fill: '#DC2626', opacity: 0.8 }} />
+              <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} isAnimationActive={false} />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
