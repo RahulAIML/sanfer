@@ -12,7 +12,8 @@ export default {
         'card-hover': 'rgb(var(--color-card-hover) / <alpha-value>)',
         line: 'rgb(var(--color-line) / <alpha-value>)',
         'line-subtle': 'rgb(var(--color-line-subtle) / <alpha-value>)',
-        accent: '#00D4FF',
+        accent: '#DC2626',
+        navy: '#0B1D3A',
         success: '#34d399',
         warning: '#fbbf24',
         danger: '#f87171',
@@ -30,7 +31,7 @@ export default {
       boxShadow: {
         card: '0 1px 3px 0 rgba(0,0,0,0.4), 0 1px 2px -1px rgba(0,0,0,0.4)',
         elevated: '0 4px 24px -4px rgba(0,0,0,0.6)',
-        glow: '0 0 0 1px rgba(0,212,255,0.3), 0 0 20px -5px rgba(0,212,255,0.15)',
+        glow: '0 0 0 1px rgba(220,38,38,0.3), 0 0 20px -5px rgba(220,38,38,0.15)',
         'glow-success': '0 0 0 1px rgba(16,185,129,0.3), 0 0 20px -5px rgba(16,185,129,0.1)',
       },
       animation: {

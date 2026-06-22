@@ -41,12 +41,12 @@
   }
 
   ::selection {
-    background: rgba(0, 212, 255, 0.2);
+    background: rgba(220, 38, 38, 0.2);
     color: #fff;
   }
 
   :focus-visible {
-    outline: 2px solid rgba(0, 212, 255, 0.45);
+    outline: 2px solid rgba(220, 38, 38, 0.45);
     outline-offset: 2px;
     border-radius: 4px;
   }
@@ -101,7 +101,7 @@ html:not(.dark) .text-slate-400 { color: #71717a; }
     @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium;
   }
   .btn-primary {
-    @apply bg-accent text-black px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 flex items-center gap-2;
+    @apply bg-accent text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-150 flex items-center gap-2;
   }
   .btn-primary:hover { opacity: 0.88; }
   .btn-ghost {
@@ -114,8 +114,8 @@ html:not(.dark) .text-slate-400 { color: #71717a; }
     color: var(--text-base);
   }
   .input:focus {
-    box-shadow: 0 0 0 2px rgba(0,212,255,0.18);
-    border-color: rgba(0,212,255,0.45);
+    box-shadow: 0 0 0 2px rgba(220,38,38,0.18);
+    border-color: rgba(220,38,38,0.45);
   }
   .select { @apply input cursor-pointer appearance-none pr-8; }
   .page-fade { animation: pageFadeIn 0.2s ease-out both; }

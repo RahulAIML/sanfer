@@ -16,13 +16,18 @@ interface NavItem {
   exact?: boolean
 }
 
-const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
+interface NavGroup {
+  label: { es: string; en: string }
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    labelKey: 'nav_overview',
+    label: { es: 'Vista General', en: 'General View' },
     items: [{ to: '/', icon: LayoutDashboard, key: 'nav_overview', exact: true }],
   },
   {
-    labelKey: 'nav_simulator',
+    label: { es: 'Simulador', en: 'Simulator' },
     items: [
       { to: '/certification', icon: BadgeCheck, key: 'nav_certification' },
       { to: '/simulations', icon: PlayCircle, key: 'nav_simulations' },
@@ -32,7 +37,7 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
     ],
   },
   {
-    labelKey: 'nav_platform',
+    label: { es: 'Plataforma', en: 'Platform' },
     items: [
       { to: '/activities', icon: Activity, key: 'nav_activities' },
       { to: '/organization', icon: Building2, key: 'nav_organization' },
@@ -40,7 +45,7 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
     ],
   },
   {
-    labelKey: 'nav_more',
+    label: { es: 'Más', en: 'More' },
     items: [
       { to: '/reports', icon: FileText, key: 'nav_reports' },
       { to: '/settings', icon: Settings, key: 'nav_settings' },
@@ -51,22 +56,28 @@ const NAV_GROUPS: { labelKey: string; items: NavItem[] }[] = [
 const NavContent = memo(function NavContent({
   collapsed,
   onNavClick,
+  language,
 }: {
   collapsed: boolean
   onNavClick?: () => void
+  language: string
 }) {
-  const language = useAppStore((s) => s.language)
   const t = useTranslation(language)
+  const es = language === 'es'
 
   return (
-    <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3 space-y-0.5">
+    <nav className="flex-1 overflow-y-auto overflow-x-hidden py-3">
       {NAV_GROUPS.map((group, gi) => (
-        <div key={group.labelKey} className={gi > 0 ? 'mt-1' : ''}>
-          {/* Section separator */}
-          {gi > 0 && !collapsed && (
-            <div className="mx-3 my-2 border-t border-line/30" />
+        <div key={gi} className={gi > 0 ? 'mt-3' : ''}>
+          {gi > 0 && (
+            collapsed ? (
+              <div className="mx-3 my-2 border-t border-white/10" />
+            ) : (
+              <p className="px-5 mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/30 select-none">
+                {es ? group.label.es : group.label.en}
+              </p>
+            )
           )}
-          {gi > 0 && collapsed && <div className="my-2 mx-3 border-t border-line/30" />}
 
           <div className="space-y-px px-2">
             {group.items.map((item) => (
@@ -80,21 +91,20 @@ const NavContent = memo(function NavContent({
                   cn(
                     'relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all duration-150 group',
                     isActive
-                      ? 'text-slate-50 bg-white/[0.07]'
-                      : 'text-slate-500 hover:text-slate-200 hover:bg-white/[0.04]',
+                      ? 'text-white bg-white/[0.10]'
+                      : 'text-white/50 hover:text-white/90 hover:bg-white/[0.06]',
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {/* Left border indicator */}
                     {isActive && (
                       <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-accent" />
                     )}
                     <item.icon
                       className={cn(
                         'w-[15px] h-[15px] shrink-0 transition-colors',
-                        isActive ? 'text-accent' : 'text-slate-600 group-hover:text-slate-400',
+                        isActive ? 'text-accent' : 'text-white/40 group-hover:text-white/70',
                       )}
                     />
                     <span className={cn(
@@ -140,10 +150,10 @@ export const Sidebar = memo(function Sidebar() {
           'flex flex-col min-w-0 overflow-hidden transition-[opacity,width] duration-150',
           sidebarCollapsed ? 'opacity-0 w-0' : 'opacity-100',
         )}>
-          <span className="text-[13px] font-semibold text-slate-100 leading-tight tracking-tight whitespace-nowrap">
+          <span className="text-[13px] font-semibold text-white leading-tight tracking-tight whitespace-nowrap">
             Sanfer
           </span>
-          <span className="text-[10px] text-slate-600 leading-tight whitespace-nowrap">
+          <span className="text-[10px] text-white/40 leading-tight whitespace-nowrap">
             {t('sidebar_tagline')}
           </span>
         </div>
@@ -151,25 +161,26 @@ export const Sidebar = memo(function Sidebar() {
     </div>
   )
 
+  const navyStyle = { background: '#0B1D3A' }
+
   return (
     <>
       {/* ── Desktop sidebar ── */}
       <aside
-        style={{ width: sidebarCollapsed ? 64 : 232 }}
-        className="relative hidden lg:flex flex-col bg-surface border-r border-line/40 h-screen shrink-0 overflow-hidden z-20 transition-[width] duration-200 ease-in-out"
+        style={{ width: sidebarCollapsed ? 64 : 232, ...navyStyle }}
+        className="relative hidden lg:flex flex-col border-r border-white/10 h-screen shrink-0 overflow-hidden z-20 transition-[width] duration-200 ease-in-out"
       >
         {/* Logo */}
-        <div className="h-14 flex items-center border-b border-line/30 shrink-0">
+        <div className="h-14 flex items-center border-b border-white/10 shrink-0">
           <LogoArea />
         </div>
 
-        <NavContent collapsed={sidebarCollapsed} />
+        <NavContent collapsed={sidebarCollapsed} language={language} />
 
         {/* Collapse toggle */}
         <button
           onClick={toggleSidebar}
-          className="absolute -right-3 top-16 w-6 h-6 rounded-full bg-surface border border-line/60 flex items-center justify-center text-slate-600 hover:text-slate-300 transition-all z-30"
-          style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.3)' }}
+          className="absolute -right-3 top-16 w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all z-30 shadow-sm"
           title={sidebarCollapsed ? 'Expand' : 'Collapse'}
         >
           {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
@@ -187,27 +198,28 @@ export const Sidebar = memo(function Sidebar() {
             onClick={closeMobile}
           />
           <aside
+            style={navyStyle}
             className={cn(
-              'fixed inset-y-0 left-0 z-50 w-[232px] flex flex-col bg-surface border-r border-line/40 lg:hidden',
+              'fixed inset-y-0 left-0 z-50 w-[232px] flex flex-col border-r border-white/10 lg:hidden',
               closing ? 'translate-x-[-260px] transition-transform duration-[220ms] ease-in' : 'animate-slide-in-left',
             )}
           >
-            <div className="h-14 flex items-center justify-between border-b border-line/30 shrink-0 pr-3">
+            <div className="h-14 flex items-center justify-between border-b border-white/10 shrink-0 pr-3">
               <div className="flex items-center gap-3 px-4">
                 <img src="/sanfer-logo.svg" alt="Sanfer" className="w-auto shrink-0" style={{ height: 28 }} />
                 <div className="flex flex-col">
-                  <span className="text-[13px] font-semibold text-slate-100 leading-tight">Sanfer</span>
-                  <span className="text-[10px] text-slate-600 leading-tight">{t('sidebar_tagline')}</span>
+                  <span className="text-[13px] font-semibold text-white leading-tight">Sanfer</span>
+                  <span className="text-[10px] text-white/40 leading-tight">{t('sidebar_tagline')}</span>
                 </div>
               </div>
               <button
                 onClick={closeMobile}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/[0.05] transition-colors"
+                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <NavContent collapsed={false} onNavClick={closeMobile} />
+            <NavContent collapsed={false} language={language} onNavClick={closeMobile} />
           </aside>
         </>
       )}

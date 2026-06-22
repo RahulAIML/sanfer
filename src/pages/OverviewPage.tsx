@@ -7,22 +7,24 @@ import {
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { CERT_TOTAL_SLOTS } from '../lib/certification'
-import { useSimulations, useTopStats, useCertCount } from '../api/queries'
+import { useTopStats, useCertCount } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
 import {
   Users, Download, Search, ChevronDown, X,
+  PlayCircle, TrendingUp, UserCheck, BadgeCheck, Layers,
 } from 'lucide-react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar,
+  BarChart, Bar, PieChart, Pie, Cell, ReferenceLine,
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { useChartColors } from '../lib/chartTheme'
 import { TooltipShell, TRow, TTitle, useTooltipColors, type TooltipColors } from '../components/charts/TooltipShell'
+import { cn } from '../lib/cn'
 
-const COLORS = { pass: '#10F5A0', fail: '#FF4D4D', accent: '#00D4FF', violet: '#A855F7' }
+const COLORS = { pass: '#10B981', fail: '#EF4444', accent: '#DC2626', violet: '#A855F7' }
 
 function TrendTooltip({ active, payload, label, es, c }: { active?: boolean; payload?: any[]; label?: string; es: boolean; c: TooltipColors }) {
   if (!active || !payload?.length) return null
@@ -54,6 +56,16 @@ function ScoreDistTooltip({ active, payload, es, c }: { active?: boolean; payloa
       <TRow label={es ? 'Sesiones' : 'Sessions'} value={d.value} valueStyle={{ color: c.accent }} c={c} />
     </TooltipShell>
   )
+}
+
+function computeDelta(spark: number[]): number | null {
+  if (spark.length < 4) return null
+  const half  = Math.floor(spark.length / 2)
+  const first = spark.slice(0, half).reduce((a, b) => a + b, 0) / half
+  const last  = spark.slice(-half).reduce((a, b) => a + b, 0) / half
+  if (first === 0) return null
+  const pct = Math.round(((last - first) / first) * 100)
+  return pct === 0 ? null : pct
 }
 
 export default function OverviewPage() {
@@ -184,6 +196,23 @@ export default function OverviewPage() {
       .map(([, users]) => users.size)
   }, [filteredSims])
 
+  // Pass/Fail donut data
+  const passCount = useMemo(
+    () => filteredSims.filter((s) => s.Diagnostico_Final?.toLowerCase() === 'si').length,
+    [filteredSims],
+  )
+  const failCount  = filteredSims.length - passCount
+  const passRatePct = filteredSims.length > 0 ? Math.round(passCount / filteredSims.length * 100) : 0
+  const donutData  = useMemo(() => [
+    { name: es ? 'Aprobadas' : 'Passed', value: passCount,  fill: COLORS.pass },
+    { name: es ? 'Reprobadas' : 'Failed', value: failCount, fill: COLORS.fail },
+  ], [passCount, failCount, es])
+
+  // Deltas from sparkline trends
+  const simsDelta     = useMemo(() => computeDelta(simsSparkData),     [simsSparkData])
+  const scoreDelta    = useMemo(() => computeDelta(scoreSparkData),     [scoreSparkData])
+  const advisorsDelta = useMemo(() => computeDelta(advisorsSparkData),  [advisorsSparkData])
+
   // ── CSV exports ─────────────────────────────
   function exportSimCSV() {
     if (!activeKpis) return
@@ -224,23 +253,40 @@ export default function OverviewPage() {
     )
   }
 
-  const topActivities = (activeActStats ?? []).slice(0, 5).map((a) => ({
-    name: a.name.length > 24 ? a.name.slice(0, 24) + '...' : a.name,
-    count: a.count,
+  const _actItems  = (activeActStats ?? []).slice(0, 6)
+  const _maxCount  = _actItems[0]?.count ?? 1
+  const _total     = filteredSims.length || 1
+  const topActivities = _actItems.map((a) => ({
+    name:     a.name.length > 32 ? a.name.slice(0, 32) + '…' : a.name,
+    count:    a.count,
+    barWidth: Math.round((a.count / _maxCount) * 100),
+    pct:      Math.round((a.count / _total) * 100),
   }))
 
+  const MEDALS = ['🥇', '🥈', '🥉']
+
   return (
-    <div className="space-y-6">
-      {/* Header + date range + exports */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-50 tracking-tight">{t('page_overview_title')}</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{t('page_overview_subtitle')}</p>
-        </div>
+    <div className="space-y-5">
+      {/* Welcome banner */}
+      <div className="rounded-2xl px-6 py-5 text-white" style={{ background: 'linear-gradient(135deg, #DC2626 0%, #991b1b 100%)' }}>
+        <h1 className="text-xl sm:text-2xl font-bold leading-tight">
+          {es ? 'Bienvenido al dashboard' : 'Welcome to the dashboard'}
+        </h1>
+        <p className="text-white/75 text-sm mt-1">
+          {activeKpis
+            ? (es
+                ? `${activeKpis.totalSimulations} simulaciones en el período seleccionado · ${activeKpis.activeAdvisors} asesores activos`
+                : `${activeKpis.totalSimulations} simulations in the selected period · ${activeKpis.activeAdvisors} active advisors`)
+            : (es ? 'Cargando datos…' : 'Loading data…')}
+        </p>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <DateRangeFilter
             from={from} to={to}
-            onApply={(f, t) => setDateRange(f || null, t || null)}
+            onApply={(f, tDate) => setDateRange(f || null, tDate || null)}
             label={es ? 'Período' : 'Period'}
           />
           {/* User filter dropdown */}
@@ -260,7 +306,7 @@ export default function OverviewPage() {
               <ChevronDown className="w-3 h-3 opacity-60" />
             </button>
             {showUserDropdown && (
-              <div className="absolute top-full mt-1 right-0 z-30 w-56 sm:w-64 bg-surface border border-line rounded-xl shadow-elevated overflow-hidden">
+              <div className="absolute top-full mt-1 left-0 z-30 w-56 sm:w-64 bg-surface border border-line rounded-xl shadow-elevated overflow-hidden">
                 <div className="p-2 border-b border-line/30">
                   <div className="relative">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
@@ -303,121 +349,172 @@ export default function OverviewPage() {
               </div>
             )}
           </div>
-          <button
-            onClick={exportSimCSV}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 border border-line/50 hover:border-line rounded-lg px-2 sm:px-3 py-1.5 transition-all"
-            title="Simulator CSV"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{es ? 'Sim. CSV' : 'Sim. CSV'}</span>
-          </button>
         </div>
+        <button
+          onClick={exportSimCSV}
+          className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 border border-line/50 hover:border-line rounded-lg px-2 sm:px-3 py-1.5 transition-all"
+          title="Simulator CSV"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">{es ? 'Sim. CSV' : 'Sim. CSV'}</span>
+        </button>
       </div>
 
-      {/* KPIs */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <KpiCard label={t('kpi_total_sims')}         value={activeKpis!.totalSimulations}            sub={t('sub_across_activities')} color="accent"  spark={simsSparkData}  />
-        <KpiCard label={t('kpi_avg_score')}          value={avgDisplay}                              sub={t('sub_overall')}           color="violet"  spark={scoreSparkData} />
-        <KpiCard label={t('kpi_active_advisors')}    value={activeKpis!.activeAdvisors}              sub={t('sub_with_simulations')}  color="indigo"  spark={advisorsSparkData} />
-        <KpiCard label={t('kpi_cert_pct')}           value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')}          color="pass"    />
-        <KpiCard label={t('kpi_total_activities')}   value={CERT_TOTAL_SLOTS}                        sub={t('sub_cert_slots')}        color="accent"  />
-        <KpiCard label={t('kpi_total_members')}      value={kpis?.totalMembers ?? '…'}               sub={t('sub_registered')}        color="violet"  />
+        <KpiCard label={t('kpi_total_sims')}       value={activeKpis!.totalSimulations}            sub={t('sub_across_activities')} icon={PlayCircle}  iconBg="bg-blue-100 dark:bg-blue-900/20"   iconColor="text-blue-600 dark:text-blue-400"   delta={simsDelta} es={es} />
+        <KpiCard label={t('kpi_avg_score')}        value={avgDisplay}                              sub={t('sub_overall')}           icon={TrendingUp}  iconBg="bg-green-100 dark:bg-green-900/20" iconColor="text-green-600 dark:text-green-400" delta={scoreDelta} es={es} />
+        <KpiCard label={t('kpi_active_advisors')}  value={activeKpis!.activeAdvisors}              sub={t('sub_with_simulations')}  icon={UserCheck}   iconBg="bg-purple-100 dark:bg-purple-900/20" iconColor="text-purple-600 dark:text-purple-400" delta={advisorsDelta} es={es} />
+        <KpiCard label={t('kpi_cert_pct')}         value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')}          icon={BadgeCheck}  iconBg="bg-red-100 dark:bg-red-900/20"     iconColor="text-red-600 dark:text-red-400"     />
+        <KpiCard label={t('kpi_total_activities')} value={CERT_TOTAL_SLOTS}                        sub={t('sub_cert_slots')}        icon={Layers}      iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600 dark:text-orange-400" />
+        <KpiCard label={t('kpi_total_members')}    value={kpis?.totalMembers ?? '…'}               sub={t('sub_registered')}        icon={Users}       iconBg="bg-slate-100 dark:bg-slate-800"    iconColor="text-slate-600 dark:text-slate-400" />
       </div>
 
-      {/* Charts */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
-          {anyFilterActive && (
-            <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
-              {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
-            </span>
-          )}
+      {/* Score Trend + Pass/Fail Donut */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="card p-5 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-slate-200">{t('score_trend')}</h3>
+            {anyFilterActive && (
+              <span className="text-[10px] text-accent bg-accent/10 px-2 py-0.5 rounded-full">
+                {filteredSims.length} {es ? 'sims filtradas' : 'filtered sims'}
+              </span>
+            )}
+          </div>
+          <div className="h-48 sm:h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
+                <YAxis domain={[0, 100]} />
+                <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
+                <ReferenceLine y={75} stroke="#DC2626" strokeDasharray="5 3" strokeOpacity={0.6} label={{ value: es ? 'Meta 75%' : 'Goal 75%', position: 'insideTopRight', fontSize: 9, fill: '#DC2626', opacity: 0.8 }} />
+                <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} isAnimationActive={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </div>
-        <div className="h-48 sm:h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={filteredTrend} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="scoreGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor={COLORS.accent} stopOpacity={0.3} />
-                  <stop offset="95%" stopColor={COLORS.accent} stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tickFormatter={(v) => v.slice(5)} />
-              <YAxis domain={[0, 100]} />
-              <Tooltip content={<TrendTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ stroke: c.cursorStroke, strokeWidth: 1.5 }} />
-              <Area type="monotone" dataKey="avgScore" stroke={COLORS.accent} strokeWidth={2} fill="url(#scoreGrad)" dot={false} isAnimationActive={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+
+        {/* Pass / Fail donut */}
+        <div className="card p-5 flex flex-col">
+          <h3 className="text-sm font-semibold text-slate-200 mb-3">
+            {es ? 'Aprobadas / Reprobadas' : 'Passed / Failed'}
+          </h3>
+          <div className="flex-1 relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height={170}>
+              <PieChart>
+                <Pie
+                  data={donutData}
+                  cx="50%" cy="50%"
+                  innerRadius={52} outerRadius={72}
+                  dataKey="value"
+                  startAngle={90} endAngle={-270}
+                  strokeWidth={0}
+                >
+                  {donutData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <p className="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">{passRatePct}%</p>
+              <p className="text-[11px] text-slate-500">{es ? 'Aprob.' : 'Pass rate'}</p>
+            </div>
+          </div>
+          <div className="flex justify-center gap-5 mt-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS.pass }} />
+              <span className="text-xs text-slate-500">{es ? 'Aprobadas' : 'Passed'}</span>
+              <span className="text-xs font-semibold text-slate-300 tabular-nums">{passCount}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: COLORS.fail }} />
+              <span className="text-xs text-slate-500">{es ? 'Reprobadas' : 'Failed'}</span>
+              <span className="text-xs font-semibold text-slate-300 tabular-nums">{failCount}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Below-fold row: Activity breakdown + Top performers ─────────────── */}
-      {/* Sentinel div — the IntersectionObserver watches this element.         */}
-      {/* Once it enters the viewport the charts mount; until then only a       */}
-      {/* lightweight placeholder occupies the layout so there is no CLS.       */}
+      {/* Activity breakdown + Top Advisors */}
       <div ref={belowFoldRef}>
         {belowFoldVisible ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Activity breakdown — needs actStats (sims + activities) */}
+            {/* Activity horizontal progress bars */}
             <div className="card p-5">
               <h3 className="text-sm font-semibold text-slate-200 mb-4">{t('activity_breakdown')}</h3>
               {activitiesLoading ? (
-                <div className="h-48 sm:h-64 skeleton rounded-lg" />
+                <div className="space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-8 skeleton rounded-lg" />)}
+                </div>
               ) : (
-                <div className="h-48 sm:h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={topActivities} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" domain={[0, 'dataMax + 5']} hide />
-                      <YAxis dataKey="name" type="category" width={130} tick={{ fontSize: 10 }} tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + '…' : v} />
-                      <Tooltip content={<ActivityTooltip es={es} c={tt} />} wrapperStyle={{ zIndex: 50, outline: 'none' }} cursor={{ fill: c.cursorFill }} />
-                      <Bar dataKey="count" fill={COLORS.accent} radius={[0, 4, 4, 0]} barSize={20} isAnimationActive={false} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                <div className="space-y-3">
+                  {topActivities.map((a) => (
+                    <div key={a.name}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs text-slate-400 truncate mr-2">{a.name}</span>
+                        <span className="text-xs font-semibold text-slate-300 tabular-nums shrink-0">{a.pct}%</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800/60 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-accent transition-[width] duration-700"
+                          style={{ width: `${a.barWidth}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Top performers — needs userStats (sims only, fast) */}
+            {/* Top advisors with medals */}
             <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-slate-200">{t('top_performers')}</h3>
                 <Link to="/leaderboard" className="text-xs text-accent hover:underline">{t('view_all')}</Link>
               </div>
-              <div className="space-y-2">
-                {(activeUserStats ?? []).slice(0, 5).map((u, i) => (
-                  <div key={u.name} className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white/[0.02] transition-colors">
-                    <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                      i === 0 ? 'bg-yellow-500/15 text-yellow-500' :
-                      i === 1 ? 'bg-slate-400/15 text-slate-300' :
-                      i === 2 ? 'bg-orange-500/15 text-orange-400' :
-                      'bg-surface text-slate-600'
-                    }`}>{i + 1}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-200 truncate">{u.name}</p>
-                      <p className="text-[11px] text-slate-600">{u.count} {es ? (u.count === 1 ? 'simulación' : 'simulaciones') : (u.count === 1 ? 'simulation' : 'simulations')}</p>
+              <div className="space-y-1">
+                {(activeUserStats ?? []).slice(0, 5).map((u, i) => {
+                  const parts    = u.name.split(' ').filter(Boolean)
+                  const initials = parts.slice(0, 2).map((w) => w[0].toUpperCase()).join('')
+                  return (
+                    <div key={u.name} className="flex items-center gap-3 py-2 border-b border-line/20 last:border-0">
+                      <span className="text-base shrink-0 w-5 text-center leading-none">
+                        {i < 3 ? MEDALS[i] : <span className="text-xs text-slate-500 font-bold">{i + 1}</span>}
+                      </span>
+                      <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                        <span className="text-[10px] font-bold text-accent">{initials}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-medium text-slate-200 truncate">{u.name}</p>
+                        <p className="text-[11px] text-slate-500">{u.count} {es ? 'sim.' : 'sim.'}</p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-accent tabular-nums">{u.bestScore}%</p>
+                        <p className="text-[10px] text-slate-600">{t('col_best')}</p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-semibold text-slate-100">{u.avgScore}%</p>
-                      <p className="text-[11px] text-slate-500">{t('col_best')}: {u.bestScore}%</p>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>
         ) : (
-          /* Placeholder — preserves layout height to avoid CLS when charts mount */
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="card p-5 h-80 skeleton rounded-xl" />
-            <div className="card p-5 h-80 skeleton rounded-xl" />
+            <div className="card p-5 h-72 skeleton rounded-xl" />
+            <div className="card p-5 h-72 skeleton rounded-xl" />
           </div>
         )}
       </div>
 
-      {/* ── Score distribution — furthest below fold ──────────────────────────── */}
+      {/* Score distribution */}
       <div ref={scoreSentRef}>
         {scoreVisible ? (
           <div className="card p-5">
@@ -443,84 +540,35 @@ export default function OverviewPage() {
 }
 
 const KpiCard = memo(function KpiCard({
-  label, value, sub, color, spark,
+  label, value, sub, icon: Icon, iconBg, iconColor, delta, es,
 }: {
-  label: string; value: string | number; sub: string
-  color: 'accent' | 'violet' | 'pass' | 'indigo'
-  spark?: number[]
+  label: string
+  value: string | number
+  sub: string
+  icon: React.ComponentType<{ className?: string }>
+  iconBg: string
+  iconColor: string
+  delta?: number | null
+  es?: boolean
 }) {
-  const theme = useAppStore((s) => s.theme)
-  const isDark = theme === 'dark'
-
-  const palette = isDark ? {
-    accent: { text: '#00D4FF', border: 'rgba(0,212,255,0.25)',   top: '#00D4FF', glow: 'rgba(0,212,255,0.06)',   fill: 'rgba(0,212,255,0.15)'   },
-    violet: { text: '#A855F7', border: 'rgba(168,85,247,0.25)',  top: '#A855F7', glow: 'rgba(168,85,247,0.06)',  fill: 'rgba(168,85,247,0.15)'  },
-    pass:   { text: '#10F5A0', border: 'rgba(16,245,160,0.25)',  top: '#10F5A0', glow: 'rgba(16,245,160,0.06)',  fill: 'rgba(16,245,160,0.15)'  },
-    indigo: { text: '#818CF8', border: 'rgba(129,140,248,0.25)', top: '#818CF8', glow: 'rgba(129,140,248,0.06)', fill: 'rgba(129,140,248,0.15)' },
-  } : {
-    accent: { text: '#0284c7', border: 'rgba(2,132,199,0.3)',    top: '#0284c7', glow: 'rgba(2,132,199,0.07)',   fill: 'rgba(2,132,199,0.12)'   },
-    violet: { text: '#7c3aed', border: 'rgba(124,58,237,0.3)',   top: '#7c3aed', glow: 'rgba(124,58,237,0.07)',  fill: 'rgba(124,58,237,0.12)'  },
-    pass:   { text: '#059669', border: 'rgba(5,150,105,0.3)',    top: '#059669', glow: 'rgba(5,150,105,0.07)',   fill: 'rgba(5,150,105,0.12)'   },
-    indigo: { text: '#4f46e5', border: 'rgba(79,70,229,0.3)',    top: '#4f46e5', glow: 'rgba(79,70,229,0.07)',   fill: 'rgba(79,70,229,0.12)'   },
-  }
-  const p = palette[color]
-  // stable gradient ID — label chars are unique per card
-  const gradId = `kpi-grad-${color}-${label.replace(/\s/g, '')}`
-
-  const delta = (() => {
-    if (!spark || spark.length < 4) return null
-    const half = Math.floor(spark.length / 2)
-    const first = spark.slice(0, half).reduce((a, b) => a + b, 0) / half
-    const last  = spark.slice(-half).reduce((a, b) => a + b, 0) / half
-    if (first === 0) return null
-    const pct = Math.round(((last - first) / first) * 100)
-    return pct === 0 ? null : pct
-  })()
-
   return (
-    <div
-      className="card p-4 sm:p-5 relative overflow-hidden flex flex-col min-h-[160px]"
-      style={{ borderColor: p.border, background: `linear-gradient(135deg, ${p.glow} 0%, transparent 60%)` }}
-    >
-      {/* Top accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: p.top }} />
-
-      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">{label}</p>
-
-      <div className="flex items-end justify-between gap-2">
-        <p className="text-2xl sm:text-3xl font-black tracking-tight tabular-nums leading-none" style={{ color: p.text }}>
-          {value}
+    <div className="card p-4 sm:p-5">
+      <div className="flex items-start justify-between mb-3 gap-2">
+        <p className="text-xs text-slate-500 font-medium leading-tight">{label}</p>
+        <div className={cn('w-9 h-9 rounded-full flex items-center justify-center shrink-0', iconBg)}>
+          <Icon className={cn('w-4 h-4', iconColor)} />
+        </div>
+      </div>
+      <p className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-slate-50 tabular-nums tracking-tight leading-none">
+        {value}
+      </p>
+      <p className="text-[11px] text-slate-500 mt-1.5 truncate">{sub}</p>
+      {delta != null && (
+        <p className={cn('text-[11px] font-semibold mt-2 flex items-center gap-0.5', delta >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400')}>
+          <span>{delta >= 0 ? '↑' : '↓'} {Math.abs(delta)}%</span>
+          <span className="text-slate-500 font-normal">{es ? ' vs mes anterior' : ' vs prev. period'}</span>
         </p>
-        {delta !== null && (
-          <span className={`text-xs font-bold mb-0.5 shrink-0 ${delta > 0 ? 'text-success' : 'text-danger'}`}>
-            {delta > 0 ? '↑' : '↓'}{Math.abs(delta)}%
-          </span>
-        )}
-      </div>
-
-      <p className="text-[11px] text-slate-600 truncate mt-1 mb-auto">{sub}</p>
-
-      {/* Sparkline slot — always same height to keep all cards equal */}
-      <div className="h-12 mt-3 -mx-2 -mb-1">
-        {spark && spark.length > 2 && (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={spark.map((v, i) => ({ v, i }))} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%"   stopColor={p.top} stopOpacity={0.35} />
-                  <stop offset="100%" stopColor={p.top} stopOpacity={0}    />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone" dataKey="v"
-                stroke={p.top} strokeWidth={2}
-                fill={`url(#${gradId})`}
-                dot={false} isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+      )}
     </div>
   )
 })
