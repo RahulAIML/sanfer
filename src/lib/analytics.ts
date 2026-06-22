@@ -624,6 +624,31 @@ export function buildAIContext(
   const actList  = actStats.map((a) => `${a.name}: ${a.count} sims, avg ${a.avgScore}%`).join('; ')
   const recent10 = sims.slice(-10).map((s) => `${s.Usuario_Nombre}: ${s.Calificacion}% ${s.Diagnostico_Final} (${s.Fecha_y_Hora?.substring(0, 10) ?? ''})`).join(', ')
 
+  // Per-advisor per-product/medicine breakdown — enables queries like
+  // "what did advisor X score on Microdacyn?" or "who has done Crisvi?"
+  const actNameLookup = (id: number) =>
+    activities.find((a) => a.ID_Caso_de_Uso === id)?.Caso_de_Uso ?? `Sim#${id}`
+  const advisorProducts = new Map<string, Map<string, { sessions: number; bestScore: number; passes: number }>>()
+  for (const s of sims) {
+    const name    = s.Usuario_Nombre ?? s.Usuario ?? 'Unknown'
+    const product = actNameLookup(s.ID_Caso_de_Uso)
+    const pass    = s.Diagnostico_Final?.toLowerCase() === 'si'
+    if (!advisorProducts.has(name)) advisorProducts.set(name, new Map())
+    const pm = advisorProducts.get(name)!
+    if (!pm.has(product)) pm.set(product, { sessions: 0, bestScore: 0, passes: 0 })
+    const st = pm.get(product)!
+    st.sessions++
+    st.bestScore = Math.max(st.bestScore, s.Calificacion)
+    if (pass) st.passes++
+  }
+  const perAdvisorProducts = advisorProducts.size === 0 ? '  (no data)' :
+    Array.from(advisorProducts.entries()).map(([name, pm]) => {
+      const products = Array.from(pm.entries())
+        .map(([prod, st]) => `${prod} ×${st.sessions} best:${st.bestScore}% ${st.passes > 0 ? '✓' : '✗'}`)
+        .join(' | ')
+      return `  ${name}: ${products}`
+    }).join('\n')
+
   const roundStats = (() => {
     const rows = ([1, 2, 3, 4, 5] as const).map((r) => {
       const key = `Puntos_${r}` as keyof Simulation
@@ -695,6 +720,9 @@ ${bottomCoaching}
 
 Activity Breakdown (sessions per activity):
 ${actList}
+
+Per-Advisor Medicine/Product Breakdown (current period — use for advisor-specific or medicine-specific queries):
+${perAdvisorProducts}
 
 Recent Sessions (last 10):
 ${recent10}
