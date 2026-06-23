@@ -131,8 +131,13 @@ export default function CertificationPage() {
     })
   }, [sims, members])
 
-  // DB-authoritative certified count — same query the platform itself uses.
-  const globalCertified = certCountQ.data ?? 0
+  // Client-computed certified count: line member who has ≥1 session on every assigned sim.
+  // cert.count bridge action was missing — derive from lines which are already computed correctly.
+  // certCountQ kept for AI context; not used here.
+  const globalCertified = useMemo(
+    () => lines.reduce((acc, l) => acc + l.certified.length, 0),
+    [lines]
+  )
 
   const totals = useMemo(() => {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
