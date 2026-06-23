@@ -160,7 +160,7 @@ export interface ObjectionStat {
   pass_count: number    // sessions where rep scored 1 on it
   pass_rate: number     // pass_count / scored × 100 (rounded int)
   model_answer?: string // ideal response extracted from retroPrompt
-  top_answers?: string[] // up to 3 diverse real rep responses
+  top_answers?: { text: string; name: string }[] // up to 3 diverse real rep responses
 }
 
 export interface ObjectionsResponse {

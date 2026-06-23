@@ -596,9 +596,16 @@ export default function ConversationalPage() {
                                       </div>
                                       <div className="space-y-1.5">
                                         {obj.top_answers.map((ans, i) => (
-                                          <p key={i} className="text-[11px] text-slate-400 bg-white/[0.03] rounded-lg px-3 py-2 leading-relaxed">
-                                            "{ans}"
-                                          </p>
+                                          <div key={i} className="bg-white/[0.03] rounded-lg px-3 py-2">
+                                            {ans.name && (
+                                              <p className="text-[10px] font-semibold text-slate-500 mb-0.5 uppercase tracking-wide">
+                                                {ans.name}
+                                              </p>
+                                            )}
+                                            <p className="text-[11px] text-slate-400 leading-relaxed">
+                                              "{ans.text}"
+                                            </p>
+                                          </div>
                                         ))}
                                       </div>
                                     </div>

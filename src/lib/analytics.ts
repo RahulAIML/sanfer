@@ -29,9 +29,10 @@ function isTestUser(s: Simulation): boolean {
   const name  = s.Usuario_Nombre ?? ''
   const email = (s.Usuario ?? '').toLowerCase()
   if (TEST_USER_BLOCKLIST.has(name)) return true
-  if (email.includes('rolplay')) return true
+  // Keywords confirmed by Silverio 2026-06-22: test, demo, prueb, vacant, rolplay
+  if (email.includes('test') || email.includes('demo') || email.includes('prueb') || email.includes('vacant') || email.includes('rolplay')) return true
   const nl = name.toLowerCase()
-  return nl.startsWith('tester') || nl.startsWith('rolplay pruebas')
+  return nl.includes('test') || nl.includes('prueb') || nl.startsWith('rolplay')
 }
 
 /** Remove simulations belonging to known test/demo accounts */
@@ -675,7 +676,7 @@ export function buildAIContext(
           ? `\n   Ideal answer: "${o.model_answer.slice(0, 600)}"`
           : ''
         const repLines = o.top_answers && o.top_answers.length > 0
-          ? '\n   Sample rep responses:\n' + o.top_answers.map((r, ri) => `     ${ri + 1}. "${r.slice(0, 500)}"`).join('\n')
+          ? '\n   Sample rep responses:\n' + o.top_answers.map((r, ri) => `     ${ri + 1}. "${r.text.slice(0, 500)}"`).join('\n')
           : ''
         return `  ${i + 1}. "${o.objection_text}" — ${o.count}x, ${o.pass_rate}% pass rate${modelLine}${repLines}`
       }).join('\n\n')

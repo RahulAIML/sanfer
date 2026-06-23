@@ -46,11 +46,18 @@ export default function CertificationPage() {
 
   const lines: LineProgress[] = useMemo(() => {
     // line tagId → active member emails (lowercased) — excludes internal accounts
+    // Mirrors the official platform WHERE clause exactly:
+    // - mb_admin 35 = "RolPlay Pruebas", 103 = "Bajas Revisión" (pending termination)
+    // - NOT LIKE patterns (confirmed by Silverio 2026-06-22): test/demo/prueb/vacant/rolplay in email
+    const EXCLUDED_ADMINS = new Set([35, 103])
     const membersByLine = new Map<number, Set<string>>()
     for (const m of members) {
       if (m.mb_status !== 1 || !m.mb_idTag1 || !m.mb_user) continue
+      if (EXCLUDED_ADMINS.has(m.mb_admin)) continue
       const email = m.mb_user.toLowerCase()
-      if (email.includes('rolplay')) continue
+      const name  = (m.mb_fullname ?? '').toLowerCase()
+      if (email.includes('test') || email.includes('demo') || email.includes('prueb') || email.includes('vacant') || email.includes('rolplay')) continue
+      if (name.includes('capacit') || name.includes('prueb')) continue
       if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, new Set())
       membersByLine.get(m.mb_idTag1)!.add(email)
     }
