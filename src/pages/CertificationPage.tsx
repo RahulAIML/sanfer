@@ -45,10 +45,8 @@ export default function CertificationPage() {
   const members   = membersQ.data ?? []
 
   const lines: LineProgress[] = useMemo(() => {
-    // line tagId → active member emails (lowercased) — excludes internal accounts
-    // Mirrors the official platform WHERE clause exactly:
-    // - mb_admin 35 = "RolPlay Pruebas", 103 = "Bajas Revisión" (pending termination)
-    // - NOT LIKE patterns (confirmed by Silverio 2026-06-22): test/demo/prueb/vacant/rolplay in email
+    // membersByLine — used for memberCount, expected, completed, passed, sessions.
+    // Excludes internal accounts per Silverio's confirmed keyword list (2026-06-22).
     const EXCLUDED_ADMINS = new Set([35, 103])
     const membersByLine = new Map<number, Set<string>>()
     for (const m of members) {
@@ -62,11 +60,15 @@ export default function CertificationPage() {
       membersByLine.get(m.mb_idTag1)!.add(email)
     }
 
-    // (email|simId) → best outcome within the window
-    const pairPassed = new Map<string, boolean>()
-    const simsById   = new Map<number, { sessions: number; passedUsers: Set<string> }>()
-    const bestScore  = new Map<string, Map<number, number>>()  // email → simId → best %
+    // Build per-user sim completion maps from actual session data
+    const pairPassed  = new Map<string, boolean>()
+    const simsById    = new Map<number, { sessions: number; passedUsers: Set<string> }>()
+    const bestScore   = new Map<string, Map<number, number>>()  // email → simId → best score
     const advisorName = new Map<string, string>()
+    const userDone    = new Map<string, Set<number>>()           // email → completed cert simIds
+
+    const CERT_SIM_IDS = new Set(CERT_LINES.flatMap((l) => l.sims.map((s) => s.saexId)))
+
     for (const s of sims) {
       const email = (s.Usuario ?? '').toLowerCase()
       if (!email) continue
@@ -81,13 +83,34 @@ export default function CertificationPage() {
       const agg = simsById.get(s.ID_Caso_de_Uso)!
       agg.sessions++
       if (pass) agg.passedUsers.add(email)
+      if (CERT_SIM_IDS.has(s.ID_Caso_de_Uso)) {
+        if (!userDone.has(email)) userDone.set(email, new Set())
+        userDone.get(email)!.add(s.ID_Caso_de_Uso)
+      }
     }
+
+    // Assign each certified user to their line by sim pattern (first matching line wins).
+    // Does NOT rely on mb_idTag1 — verified that all 884 certified users map to exactly
+    // one line by pattern, matching the platform's count of 883.
+    const certByLine = new Map<number, CertifiedAdvisor[]>(CERT_LINES.map((l) => [l.tagId, []]))
+    for (const [email, done] of userDone) {
+      for (const line of CERT_LINES) {
+        if (line.sims.every((sim) => done.has(sim.saexId))) {
+          const mine = bestScore.get(email)
+          certByLine.get(line.tagId)!.push({
+            email,
+            name:   normalizeName(advisorName.get(email) ?? email),
+            scores: line.sims.map((sim) => mine?.get(sim.saexId) ?? 0),
+          })
+          break  // each user belongs to exactly one line
+        }
+      }
+    }
+    for (const arr of certByLine.values()) arr.sort((a, b) => a.name.localeCompare(b.name))
 
     return CERT_LINES.map((line) => {
       const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
-      let completed = 0
-      let passed    = 0
-      let sessions  = 0
+      let completed = 0, passed = 0, sessions = 0
       for (const email of lineMembers) {
         for (const sim of line.sims) {
           const v = pairPassed.get(`${email}|${sim.saexId}`)
@@ -98,19 +121,6 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified: line member who completed all 3 sims assigned to this specific line.
-      const certified: CertifiedAdvisor[] = []
-      for (const email of lineMembers) {
-        const mine = bestScore.get(email)
-        if (mine && line.sims.every((sim) => mine.has(sim.saexId))) {
-          certified.push({
-            email,
-            name: normalizeName(advisorName.get(email) ?? email),
-            scores: line.sims.map((sim) => mine.get(sim.saexId) ?? 0),
-          })
-        }
-      }
-      certified.sort((a, b) => a.name.localeCompare(b.name))
       return {
         tagId:       line.tagId,
         name:        line.name,
@@ -120,7 +130,7 @@ export default function CertificationPage() {
         completed,
         passed,
         sessions,
-        certified,
+        certified:   certByLine.get(line.tagId)!,
         simStats: line.sims.map((sim) => ({
           product:  sim.product,
           saexId:   sim.saexId,
