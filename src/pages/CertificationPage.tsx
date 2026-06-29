@@ -111,6 +111,12 @@ export default function CertificationPage() {
     return CERT_LINES.map((line) => {
       const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
       let completed = 0, passed = 0, sessions = 0
+
+      // per-sim stats scoped to this line's members — avoids double-counting shared sims
+      const lineSimAgg = new Map<number, { sessions: number; passedUsers: Set<string> }>(
+        line.sims.map((s) => [s.saexId, { sessions: 0, passedUsers: new Set() }])
+      )
+
       for (const email of lineMembers) {
         for (const sim of line.sims) {
           const v = pairPassed.get(`${email}|${sim.saexId}`)
@@ -119,8 +125,14 @@ export default function CertificationPage() {
       }
       for (const s of sims) {
         const email = (s.Usuario ?? '').toLowerCase()
-        if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
+        if (!lineMembers.has(email)) continue
+        const agg = lineSimAgg.get(s.ID_Caso_de_Uso)
+        if (!agg) continue
+        agg.sessions++
+        sessions++
+        if (s.Diagnostico_Final?.toLowerCase() === 'si') agg.passedUsers.add(email)
       }
+
       return {
         tagId:       line.tagId,
         name:        line.name,
@@ -131,12 +143,10 @@ export default function CertificationPage() {
         passed,
         sessions,
         certified:   certByLine.get(line.tagId)!,
-        simStats: line.sims.map((sim) => ({
-          product:  sim.product,
-          saexId:   sim.saexId,
-          sessions: simsById.get(sim.saexId)?.sessions ?? 0,
-          passed:   simsById.get(sim.saexId)?.passedUsers.size ?? 0,
-        })),
+        simStats: line.sims.map((sim) => {
+          const agg = lineSimAgg.get(sim.saexId)!
+          return { product: sim.product, saexId: sim.saexId, sessions: agg.sessions, passed: agg.passedUsers.size }
+        }),
       }
     })
   }, [sims, members])
@@ -292,6 +302,11 @@ export default function CertificationPage() {
                       {line.certified.length > 0 && (
                         <span className="flex items-center gap-0.5 text-[10px] font-bold text-success shrink-0" title={t('cert_kpi_certified')}>
                           <Award className="w-3 h-3" />{line.certified.length}
+                          {line.certified.length > line.memberCount && (
+                            <span className="text-amber-500 font-normal ml-0.5" title={es ? 'Certificados fuera del padrón actual' : 'Certified but not in current roster'}>
+                              (+{line.certified.length - line.memberCount})
+                            </span>
+                          )}
                         </span>
                       )}
                     </div>
