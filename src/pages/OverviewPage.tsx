@@ -6,7 +6,7 @@ import {
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { CERT_TOTAL_SLOTS } from '../lib/certification'
+import { CERT_TOTAL_SLOTS, countCertLineMembers } from '../lib/certification'
 import { useTopStats, useCertCount } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
@@ -84,12 +84,13 @@ export default function OverviewPage() {
     refetch,
   } = useDashboardData()
 
-  // Cert % — DB-authoritative count divided by total members.
+  // Cert % — DB-authoritative count divided by cert-line members only.
   const { data: dbCertCount } = useCertCount()
+  const certLineMembers = useMemo(() => countCertLineMembers(members), [members])
   const certPct = useMemo(() => {
-    if (dbCertCount == null || !kpis?.totalMembers) return null
-    return Math.round((dbCertCount / kpis.totalMembers) * 100)
-  }, [dbCertCount, kpis?.totalMembers])
+    if (dbCertCount == null || !certLineMembers) return null
+    return Math.round((dbCertCount / certLineMembers) * 100)
+  }, [dbCertCount, certLineMembers])
 
   // Skeleton only while sims are loading — activities are cached 24 h and arrive
   // almost immediately on any warm session.

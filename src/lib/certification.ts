@@ -120,3 +120,27 @@ export const CERT_LINES: CertLine[] = [
 ]
 
 export const CERT_JEFES: string[] = Array.from(new Set(CERT_LINES.map((l) => l.jefe)))
+
+// tagIds for all cert lines — used to scope the certPct denominator
+const CERT_LINE_TAG_IDS = new Set(CERT_LINES.map((l) => l.tagId))
+const EXCLUDED_ADMINS   = new Set([35, 103])
+
+/**
+ * Count of active members assigned to a cert line, applying the same exclusion
+ * rules used in CertificationPage. Used as the certPct denominator so that the
+ * rate reflects cert-line participants only (not all org members).
+ */
+export function countCertLineMembers(members: { mb_status: number; mb_idTag1: number; mb_admin: number; mb_user: string; mb_fullname: string }[]): number {
+  const seen = new Set<string>()
+  for (const m of members) {
+    if (m.mb_status !== 1 || !m.mb_idTag1 || !m.mb_user) continue
+    if (!CERT_LINE_TAG_IDS.has(m.mb_idTag1)) continue
+    if (EXCLUDED_ADMINS.has(m.mb_admin)) continue
+    const email = m.mb_user.toLowerCase()
+    const name  = (m.mb_fullname ?? '').toLowerCase()
+    if (email.includes('test') || email.includes('demo') || email.includes('prueb') || email.includes('vacant') || email.includes('rolplay')) continue
+    if (name.includes('capacit') || name.includes('prueb')) continue
+    seen.add(email)
+  }
+  return seen.size
+}
