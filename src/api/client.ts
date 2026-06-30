@@ -54,15 +54,16 @@ function isInternalEmail(email: string | null | undefined): boolean {
 // Tester/internal rpa_id values confirmed by Mexico team (excluded from all admin counts).
 const TESTER_ADMIN_IDS = new Set([1, 28, 29, 97])
 
-// Tester member: mb_admin linked to a tester admin, or username/fullname contains
-// test-account keywords (mirrors the SQL: mb_user LIKE '%tester%' OR '%prueba%' OR
-// '%demo%', mb_fullname LIKE '%prueba%' OR '%capacit%').
+// Mirrors Mexico team SQL exactly (queries_Sanfer.pdf):
+//   WHERE m.mb_admin != 97
+//   AND NOT (mb_user/mb_fullname LIKE '%tester%|%prueba%|%demo%|%capacitacion%|%capacitación%|%vacante%')
+// TESTER_ADMIN_IDS (1,28,29,97) is ONLY for the admins table (rpa_id).
+// For members the PDF specifies mb_admin != 97 only — 1/28/29 are real admin accounts
+// that manage legitimate Sanfer reps and must NOT be excluded here.
 function isTesterMember(m: { mb_admin: number; mb_user: string; mb_fullname: string }): boolean {
-  if (TESTER_ADMIN_IDS.has(m.mb_admin)) return true
+  if (m.mb_admin === 97) return true
   const user = m.mb_user.toLowerCase()
   const name = m.mb_fullname.toLowerCase()
-  // Mirrors Mexico team SQL: mb_user/mb_fullname LIKE '%tester%' OR '%prueba%' OR
-  // '%demo%' OR '%capacitacion%' OR '%vacante%'
   const KEYWORDS = ['tester', 'prueba', 'demo', 'capacit', 'vacante']
   return KEYWORDS.some((k) => user.includes(k) || name.includes(k))
 }

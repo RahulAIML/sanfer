@@ -15,6 +15,7 @@ curl -fsS -o /dev/null --max-time 300 "${B}?action=objections.demorp6&ids=${IDS}
 curl -fsS -o /dev/null --max-time 120 "${B}?action=activities.demorp6&ids=${IDS}&refresh=1"
 curl -fsS -o /dev/null --max-time 120 "${B}?action=org.members&refresh=1"
 curl -fsS -o /dev/null --max-time 120 "${B}?action=org.admins&refresh=1"
+curl -fsS -o /dev/null --max-time 120 "${B}?action=org.certification&refresh=1"
 
 if [ "$1" = "wide" ]; then
   # Last 15 days and 7 days for quick-filter presets
