@@ -33,6 +33,8 @@ define("OFF_DB_USER","uDashboardPBI");
 define("OFF_DB_PASS","Imply0-Skittle-Challenge7");
 // Cert line IDs — same values as CERT_LINES[*].tagId in certification.ts
 define("CERT_LINE_IDS","1,2,3,5,6,7,8,9,10,11,12,23,24,25,28");
+// Tester exclusion — exact condition used by official platform queries (from queries_Sanfer.pdf)
+define("TESTER_EXCL","m.mb_user LIKE '%tester%' OR m.mb_user LIKE '%prueba%' OR m.mb_user LIKE '%demo%' OR m.mb_user LIKE '%capacitacion%' OR m.mb_user LIKE '%capacitación%' OR m.mb_user LIKE '%vacante%' OR m.mb_fullname LIKE '%tester%' OR m.mb_fullname LIKE '%prueba%' OR m.mb_fullname LIKE '%demo%' OR m.mb_fullname LIKE '%capacitacion%' OR m.mb_fullname LIKE '%capacitación%' OR m.mb_fullname LIKE '%vacante%'");
 
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
@@ -497,33 +499,31 @@ case "org.admins":
     out(["ok"=>true,"cached"=>false,"count"=>count($data),"data"=>$data]);
 
 case "org.certification":
-    // Official source: rolePlay_sanfer_v3.profiles_assigned on 104.248.186.64.
-    // Exact same data as rolplaysanfer.com cert page.
-    // Row shape: mb_user, profile_id, finalized, fase1, fase1_score, fase2, fase2_score, fase3, fase3_score
-    $cacheFile = sys_get_temp_dir()."/sanfer_org_certification_v2.json";
+    // Exact official query from queries_Sanfer.pdf — profiles_assigned JOIN members,
+    // mb_admin != 97, tester/prueba/demo/vacante exclusion. No bhl_id line filter.
+    $cacheFile = sys_get_temp_dir()."/sanfer_org_certification_v3.json";
     if(empty($in["refresh"]) && is_file($cacheFile) && time()-filemtime($cacheFile) < METRIC_TTL) {
-        $rows = json_decode((string)file_get_contents($cacheFile), true);
-        if(is_array($rows)) out(["ok"=>true,"cached"=>true,"count"=>count($rows),"data"=>$rows]);
+        $cached = json_decode((string)file_get_contents($cacheFile), true);
+        if(is_array($cached) && isset($cached['data'])) out(array_merge(["ok"=>true,"cached"=>true], $cached));
     }
     try {
         $st = official_pdo()->query("
             SELECT LOWER(m.mb_user) AS mb_user,
+                   m.mb_fullname AS nombre, m.mb_reference AS empleado, m.mb_ruta AS ruta,
                    pa.prf_assigned_profile AS profile_id,
                    IF(pa.prf_assigned_fase1=1 AND pa.prf_assigned_fase2=1 AND pa.prf_assigned_fase3=1, 1, 0) AS finalized,
                    pa.prf_assigned_fase1 AS fase1, pa.prf_assigned_fase1_score AS fase1_score,
                    pa.prf_assigned_fase2 AS fase2, pa.prf_assigned_fase2_score AS fase2_score,
                    pa.prf_assigned_fase3 AS fase3, pa.prf_assigned_fase3_score AS fase3_score
-            FROM   members m
-            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
-            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+            FROM   profiles_assigned AS pa
+            JOIN   members AS m ON pa.prf_assigned_user = m.mb_id
             WHERE  m.mb_admin != 97
-              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
-            ORDER BY m.mb_user
+              AND  NOT (".TESTER_EXCL.")
+            ORDER BY m.mb_id ASC
         ");
         $rows = $st->fetchAll();
     } catch(Exception $e) { err("official DB error: ".$e->getMessage(), 503); }
 
-    // Build and cache aggregate stats alongside the per-user data
     $certifiedCount = 0; $completedCount = 0;
     foreach($rows as $r) {
         if($r['finalized']) $certifiedCount++;
@@ -538,31 +538,30 @@ case "org.certification":
         "pct"       => $total ? (int)round($completedCount / ($total*3) * 100) : 0,
         "cert_pct"  => $total ? (int)round($certifiedCount / $total * 100) : 0,
     ];
-    @file_put_contents(sys_get_temp_dir()."/sanfer_cert_stats_v2.json", json_encode($certStats));
-    @file_put_contents($cacheFile, json_encode($rows, JSON_UNESCAPED_UNICODE));
-    out(["ok"=>true,"cached"=>false,"count"=>$total,"data"=>$rows,"stats"=>$certStats]);
+    $payload = ["count"=>$total,"data"=>$rows,"stats"=>$certStats];
+    @file_put_contents(sys_get_temp_dir()."/sanfer_cert_stats_v3.json", json_encode($certStats));
+    @file_put_contents($cacheFile, json_encode($payload, JSON_UNESCAPED_UNICODE));
+    out(array_merge(["ok"=>true,"cached"=>false], $payload));
 
 case "cert.stats":
-    // Aggregate stats direct from official DB — single query, no per-user payload.
-    // Source of truth: rolePlay_sanfer_v3 profiles_assigned, exact official queries.
-    $statsFile = sys_get_temp_dir()."/sanfer_cert_stats_v2.json";
-    if(empty($in["refresh"]) && is_file($statsFile) && time()-filemtime($statsFile) < METRIC_TTL) {
+    // Exact official aggregate query from queries_Sanfer.pdf.
+    // No bhl_id line filter — matches rolplaysanfer.com cert page exactly.
+    $statsFile = sys_get_temp_dir()."/sanfer_cert_stats_v3.json";
+    if(empty($in["refresh"]) && is_file($statsFile) && time()-filemtime($statsFile) < SIM_TTL) {
         $s = json_decode((string)file_get_contents($statsFile), true);
         if(is_array($s) && isset($s["total"])) out(array_merge(["ok"=>true,"cached"=>true], $s));
     }
-    // Run the official aggregate query
     try {
         $r = official_pdo()->query("
-            SELECT COUNT(DISTINCT m.mb_id)                                                                    AS total,
+            SELECT COUNT(DISTINCT m.mb_id) AS total,
                    SUM(IF(pa.prf_assigned_fase1=1 AND pa.prf_assigned_fase2=1 AND pa.prf_assigned_fase3=1,1,0)) AS certified,
-                   SUM(pa.prf_assigned_fase1)                                                                  AS f1,
-                   SUM(pa.prf_assigned_fase2)                                                                  AS f2,
-                   SUM(pa.prf_assigned_fase3)                                                                  AS f3
-            FROM   members m
-            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
-            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+                   SUM(pa.prf_assigned_fase1) AS f1,
+                   SUM(pa.prf_assigned_fase2) AS f2,
+                   SUM(pa.prf_assigned_fase3) AS f3
+            FROM   profiles_assigned AS pa
+            JOIN   members AS m ON pa.prf_assigned_user = m.mb_id
             WHERE  m.mb_admin != 97
-              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
+              AND  NOT (".TESTER_EXCL.")
         ")->fetch();
     } catch(Exception $e) { err("official DB error: ".$e->getMessage(), 503); }
     $tot  = (int)$r["total"];
@@ -577,7 +576,7 @@ case "cert.stats":
         "cert_pct"  => $tot ? (int)round($cert / $tot * 100) : 0,
     ];
     @file_put_contents($statsFile, json_encode($stats));
-    out_cached(array_merge(["ok"=>true], $stats), "cert_stats_official_v2", SIM_TTL);
+    out_cached(array_merge(["ok"=>true], $stats), "cert_stats_official_v3", SIM_TTL);
 
 case "activities.demorp6":
     $ids_csv = trim($in["ids"] ?? "");
@@ -999,19 +998,15 @@ case "sim.topstats":
     } catch(Exception $e) { err("DB error: ".$e->getMessage(), 503); }
 
 case "cert.count":
-    // Exact official query from rolePlay_sanfer_v3.profiles_assigned — same source
-    // as rolplaysanfer.com/home/reportes/view/certificacion.php.
-    // Certified = prf_assigned_fase1=1 AND fase2=1 AND fase3=1, mb_admin != 97.
-    $cache_key = "cert_count_official";
+    $cache_key = "cert_count_official_v3";
     if(empty($in["refresh"])) serve_cached($cache_key, SIM_TTL);
     try {
         $r = official_pdo()->query("
             SELECT COUNT(DISTINCT m.mb_id) AS certified
-            FROM   members m
-            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
-            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+            FROM   profiles_assigned AS pa
+            JOIN   members AS m ON pa.prf_assigned_user = m.mb_id
             WHERE  m.mb_admin != 97
-              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
+              AND  NOT (".TESTER_EXCL.")
               AND  pa.prf_assigned_fase1 = 1
               AND  pa.prf_assigned_fase2 = 1
               AND  pa.prf_assigned_fase3 = 1
