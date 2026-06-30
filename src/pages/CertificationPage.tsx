@@ -152,13 +152,10 @@ export default function CertificationPage() {
     })
   }, [sims, members])
 
-  // Client-computed certified count: line member who has ≥1 session on every assigned sim.
-  // cert.count bridge action was missing — derive from lines which are already computed correctly.
-  // certCountQ kept for AI context; not used here.
-  const globalCertified = useMemo(
-    () => lines.reduce((acc, l) => acc + l.certified.length, 0),
-    [lines]
-  )
+  // Certified count from official DB (rolePlay_sanfer_v3) — exact source of truth.
+  // Falls back to client-side count while the DB query is in-flight.
+  const globalCertified = certStatsQ.data?.certified
+    ?? lines.reduce((acc, l) => acc + l.certified.length, 0)
 
   // Global progress — DB-sourced from cert.stats (bridge queries org DB + sim DB server-side).
   // Falls back to client-side totals while the DB query is in-flight.

@@ -23,6 +23,17 @@ define("ORG_DB_NAME","rolplay_sanfer_robin");
 define("ORG_DB_USER","uPlatformsReport");
 define("ORG_DB_PASS","Overhaul-Quit-Wanted2");
 
+// ── Official Rolplay platform DB — same source as rolplaysanfer.com ──
+// Contains profiles_assigned (curated cert assignments) and sales_line.
+// All cert metrics should be queried here to match the official platform exactly.
+define("OFF_DB_HOST","104.248.186.64");
+define("OFF_DB_PORT",3306);
+define("OFF_DB_NAME","rolePlay_sanfer_v3");
+define("OFF_DB_USER","uDashboardPBI");
+define("OFF_DB_PASS","Imply0-Skittle-Challenge7");
+// Cert line IDs — same values as CERT_LINES[*].tagId in certification.ts
+define("CERT_LINE_IDS","1,2,3,5,6,7,8,9,10,11,12,23,24,25,28");
+
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Access-Control-Allow-Headers: Content-Type");
@@ -47,6 +58,20 @@ function org_pdo(): PDO {
     $p = new PDO(
         "mysql:host=".ORG_DB_HOST.";port=".ORG_DB_PORT.";dbname=".ORG_DB_NAME.";charset=utf8mb4",
         ORG_DB_USER, ORG_DB_PASS,
+        [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
+         PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
+         PDO::ATTR_EMULATE_PREPARES=>false]
+    );
+    return $p;
+}
+
+/** Official Rolplay platform DB — same source as rolplaysanfer.com cert page. */
+function official_pdo(): PDO {
+    static $p=null;
+    if($p) return $p;
+    $p = new PDO(
+        "mysql:host=".OFF_DB_HOST.";port=".OFF_DB_PORT.";dbname=".OFF_DB_NAME.";charset=utf8mb4",
+        OFF_DB_USER, OFF_DB_PASS,
         [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,
          PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC,
          PDO::ATTR_EMULATE_PREPARES=>false]
@@ -472,177 +497,87 @@ case "org.admins":
     out(["ok"=>true,"cached"=>false,"count"=>count($data),"data"=>$data]);
 
 case "org.certification":
-    // Mirrors profiles_assigned structure from the official queries.
-    // profiles_assigned doesn't exist in rolplay_sanfer_robin (no CREATE TABLE privilege),
-    // so we compute the equivalent live from members (org DB) + sale_exercises (sim DB).
-    // Output row shape: mb_user, profile_id, finalized, fase1, fase1_score, fase2, fase2_score, fase3, fase3_score
-    $cacheFile = sys_get_temp_dir()."/sanfer_org_certification.json";
+    // Official source: rolePlay_sanfer_v3.profiles_assigned on 104.248.186.64.
+    // Exact same data as rolplaysanfer.com cert page.
+    // Row shape: mb_user, profile_id, finalized, fase1, fase1_score, fase2, fase2_score, fase3, fase3_score
+    $cacheFile = sys_get_temp_dir()."/sanfer_org_certification_v2.json";
     if(empty($in["refresh"]) && is_file($cacheFile) && time()-filemtime($cacheFile) < METRIC_TTL) {
         $rows = json_decode((string)file_get_contents($cacheFile), true);
         if(is_array($rows)) out(["ok"=>true,"cached"=>true,"count"=>count($rows),"data"=>$rows]);
     }
-
-    // Line → [slot1_simId, slot2_simId, slot3_simId] — mirrors cert.count / certification.ts
-    $CERT_LINE_SIMS = [
-        1=>[399,490,390],  2=>[493,413,448],  3=>[406,492,455],
-        5=>[428,457,488],  6=>[464,436,484],  7=>[409,449,420],
-        8=>[489,460,468],  9=>[445,410,491],  10=>[461,402,432],
-        11=>[453,419,403], 12=>[465,405,446], 23=>[420,408,440],
-        24=>[421,423,439], 25=>[467,433,462], 28=>[411,454,481],
-    ];
-    $CERT_DATE_FROM = "2026-06-01 00:00:00";
-    $CERT_TAG_IDS   = array_keys($CERT_LINE_SIMS);
-
-    // 1. Cert-line members from org DB
-    // mb_admin NOT IN (35,103) matches empirically to 937 cert-line members — closest
-    // approximation to the official 932 (profiles_assigned is not accessible).
-    $phTags = implode(",", array_fill(0, count($CERT_TAG_IDS), "?"));
     try {
-        $st = org_pdo()->prepare("
-            SELECT mb_id, LOWER(mb_user) AS email, mb_idTag1
-            FROM   members
-            WHERE  mb_status = 1
-              AND  mb_idTag1 IN ($phTags)
-              AND  mb_admin NOT IN (35, 103)
-              AND  NOT (
-                mb_user     LIKE '%tester%'       OR mb_user     LIKE '%prueba%'       OR
-                mb_user     LIKE '%demo%'          OR mb_user     LIKE '%capacitacion%' OR
-                mb_user     LIKE '%capacitación%'  OR mb_user     LIKE '%vacante%'      OR
-                mb_user     LIKE '%rolplay%'        OR
-                mb_fullname LIKE '%tester%'        OR mb_fullname LIKE '%prueba%'       OR
-                mb_fullname LIKE '%demo%'          OR mb_fullname LIKE '%capacitacion%' OR
-                mb_fullname LIKE '%capacitación%'  OR mb_fullname LIKE '%vacante%'
-              )
+        $st = official_pdo()->query("
+            SELECT LOWER(m.mb_user) AS mb_user,
+                   pa.prf_assigned_profile AS profile_id,
+                   IF(pa.prf_assigned_fase1=1 AND pa.prf_assigned_fase2=1 AND pa.prf_assigned_fase3=1, 1, 0) AS finalized,
+                   pa.prf_assigned_fase1 AS fase1, pa.prf_assigned_fase1_score AS fase1_score,
+                   pa.prf_assigned_fase2 AS fase2, pa.prf_assigned_fase2_score AS fase2_score,
+                   pa.prf_assigned_fase3 AS fase3, pa.prf_assigned_fase3_score AS fase3_score
+            FROM   members m
+            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
+            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+            WHERE  m.mb_admin != 97
+              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
+            ORDER BY m.mb_user
         ");
-        $st->execute($CERT_TAG_IDS);
-        $members = $st->fetchAll();
-    } catch(Exception $e) { err("org DB error: ".$e->getMessage(), 503); }
+        $rows = $st->fetchAll();
+    } catch(Exception $e) { err("official DB error: ".$e->getMessage(), 503); }
 
-    // email → {mb_id, tagId}
-    $memberMap = [];
-    foreach($members as $m) $memberMap[$m['email']] = ['mb_id'=>(int)$m['mb_id'],'tagId'=>(int)$m['mb_idTag1']];
-
-    // 2. Sim completions from sim DB
-    $allSimIds = array_unique(array_merge(...array_values($CERT_LINE_SIMS)));
-    $phSims    = implode(",", array_fill(0, count($allSimIds), "?"));
-    try {
-        $params = array_merge([DB_CLIENT, $CERT_DATE_FROM], $allSimIds);
-        $st = pdo()->prepare("
-            SELECT LOWER(saex_rp_email) AS email, saex_useCases AS sim_id,
-                   saex_score, saex_scoreData
-            FROM   sale_exercises
-            WHERE  saex_rp_client = ?
-              AND  saex_DateTime  >= ?
-              AND  saex_useCases  IN ($phSims)
-              AND  saex_rp_email  IS NOT NULL
-              AND  saex_rp_email  != ''
-              AND  saex_rp_email  NOT LIKE '%rolplay%'
-        ");
-        $st->execute($params);
-    } catch(Exception $e) { err("DB error: ".$e->getMessage(), 503); }
-
-    // email → simId → best score (with scoreData.avg fallback)
-    $scores = [];
-    while($r = $st->fetch()) {
-        $email = $r['email']; $simId = (int)$r['sim_id'];
-        $score = (float)$r['saex_score'];
-        if($score == 0 && !empty($r['saex_scoreData'])) {
-            $sd = @json_decode($r['saex_scoreData'], true);
-            if(is_array($sd) && isset($sd['avg']) && $sd['avg'] > 0) $score = (float)$sd['avg'];
-        }
-        if(!isset($scores[$email])) $scores[$email] = [];
-        $scores[$email][$simId] = max($scores[$email][$simId] ?? 0.0, $score);
-    }
-
-    // 3. Build one row per member — same shape as profiles_assigned.
-    // Certified detection uses sim-pattern matching (identical to cert.count) because
-    // mb_idTag1 is unreliable — many users are tagged to the wrong line in the org DB
-    // but completed sims for their actual line. Pattern matching correctly yields ~884 certified.
-    $rows = [];
-    foreach($memberMap as $email => $info) {
-        $orgTagId = $info['tagId'];
-        $us       = $scores[$email] ?? [];
-        $done     = array_keys($us);  // simIds this user completed
-
-        // Find which cert line this user actually certified for (sim-pattern match)
-        $certTagId = null;
-        foreach($CERT_LINE_SIMS as $tid => $sims) {
-            if(count(array_intersect($sims, $done)) === 3) { $certTagId = $tid; break; }
-        }
-
-        if($certTagId !== null) {
-            // Certified — use the line they actually completed
-            [$s1,$s2,$s3] = $CERT_LINE_SIMS[$certTagId];
-            $rows[] = [
-                'mb_user'     => $email,
-                'profile_id'  => $certTagId,
-                'finalized'   => 1,
-                'fase1'       => 1, 'fase1_score' => (float)$us[$s1],
-                'fase2'       => 1, 'fase2_score' => (float)$us[$s2],
-                'fase3'       => 1, 'fase3_score' => (float)$us[$s3],
-            ];
-        } else {
-            // Not certified — use their org-assigned line, track partial completion
-            if(!isset($CERT_LINE_SIMS[$orgTagId])) continue;
-            [$s1,$s2,$s3] = $CERT_LINE_SIMS[$orgTagId];
-            $fase1 = isset($us[$s1]) ? 1 : 0;
-            $fase2 = isset($us[$s2]) ? 1 : 0;
-            $fase3 = isset($us[$s3]) ? 1 : 0;
-            $rows[] = [
-                'mb_user'     => $email,
-                'profile_id'  => $orgTagId,
-                'finalized'   => 0,
-                'fase1'       => $fase1, 'fase1_score' => $fase1 ? (float)$us[$s1] : null,
-                'fase2'       => $fase2, 'fase2_score' => $fase2 ? (float)$us[$s2] : null,
-                'fase3'       => $fase3, 'fase3_score' => $fase3 ? (float)$us[$s3] : null,
-            ];
-        }
-    }
-
-    // Compute aggregate stats and cache them for cert.stats endpoint
+    // Build and cache aggregate stats alongside the per-user data
     $certifiedCount = 0; $completedCount = 0;
     foreach($rows as $r) {
         if($r['finalized']) $certifiedCount++;
-        $completedCount += ($r['fase1'] ?? 0) + ($r['fase2'] ?? 0) + ($r['fase3'] ?? 0);
+        $completedCount += (int)$r['fase1'] + (int)$r['fase2'] + (int)$r['fase3'];
     }
+    $total = count($rows);
     $certStats = [
-        "total"     => count($rows),
+        "total"     => $total,
         "certified" => $certifiedCount,
         "completed" => $completedCount,
-        "expected"  => count($rows) * 3,
-        "pct"       => count($rows) ? round($completedCount / (count($rows)*3) * 100) : 0,
-        "cert_pct"  => count($rows) ? round($certifiedCount / count($rows) * 100) : 0,
+        "expected"  => $total * 3,
+        "pct"       => $total ? (int)round($completedCount / ($total*3) * 100) : 0,
+        "cert_pct"  => $total ? (int)round($certifiedCount / $total * 100) : 0,
     ];
-    @file_put_contents(sys_get_temp_dir()."/sanfer_cert_stats.json", json_encode($certStats));
+    @file_put_contents(sys_get_temp_dir()."/sanfer_cert_stats_v2.json", json_encode($certStats));
     @file_put_contents($cacheFile, json_encode($rows, JSON_UNESCAPED_UNICODE));
-    out(["ok"=>true,"cached"=>false,"count"=>count($rows),"data"=>$rows,"stats"=>$certStats]);
+    out(["ok"=>true,"cached"=>false,"count"=>$total,"data"=>$rows,"stats"=>$certStats]);
 
 case "cert.stats":
-    // Lightweight aggregate stats: total members, certified, completed/expected slots.
-    // Serves the global progress bar without fetching the full per-user payload.
-    $statsFile = sys_get_temp_dir()."/sanfer_cert_stats.json";
+    // Aggregate stats direct from official DB — single query, no per-user payload.
+    // Source of truth: rolePlay_sanfer_v3 profiles_assigned, exact official queries.
+    $statsFile = sys_get_temp_dir()."/sanfer_cert_stats_v2.json";
     if(empty($in["refresh"]) && is_file($statsFile) && time()-filemtime($statsFile) < METRIC_TTL) {
         $s = json_decode((string)file_get_contents($statsFile), true);
         if(is_array($s) && isset($s["total"])) out(array_merge(["ok"=>true,"cached"=>true], $s));
     }
-    // Stats cache is stale — derive from org.certification cache if available
-    $certCache = sys_get_temp_dir()."/sanfer_org_certification.json";
-    if(is_file($certCache) && time()-filemtime($certCache) < METRIC_TTL) {
-        $rows2 = json_decode((string)file_get_contents($certCache), true);
-        if(is_array($rows2) && count($rows2) > 0) {
-            $tot = count($rows2); $cert2 = 0; $comp2 = 0;
-            foreach($rows2 as $r) {
-                if($r['finalized']) $cert2++;
-                $comp2 += ($r['fase1']??0)+($r['fase2']??0)+($r['fase3']??0);
-            }
-            $s2 = ["total"=>$tot,"certified"=>$cert2,"completed"=>$comp2,"expected"=>$tot*3,
-                   "pct"=>$tot?round($comp2/($tot*3)*100):0,"cert_pct"=>$tot?round($cert2/$tot*100):0];
-            @file_put_contents($statsFile, json_encode($s2));
-            out(array_merge(["ok"=>true,"cached"=>false], $s2));
-        }
-    }
-    // No cache available — client should call org.certification to warm
-    err("cert.stats cache empty — call ?action=org.certification first", 503);
+    // Run the official aggregate query
+    try {
+        $r = official_pdo()->query("
+            SELECT COUNT(DISTINCT m.mb_id)                                                                    AS total,
+                   SUM(IF(pa.prf_assigned_fase1=1 AND pa.prf_assigned_fase2=1 AND pa.prf_assigned_fase3=1,1,0)) AS certified,
+                   SUM(pa.prf_assigned_fase1)                                                                  AS f1,
+                   SUM(pa.prf_assigned_fase2)                                                                  AS f2,
+                   SUM(pa.prf_assigned_fase3)                                                                  AS f3
+            FROM   members m
+            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
+            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+            WHERE  m.mb_admin != 97
+              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
+        ")->fetch();
+    } catch(Exception $e) { err("official DB error: ".$e->getMessage(), 503); }
+    $tot  = (int)$r["total"];
+    $cert = (int)$r["certified"];
+    $comp = (int)$r["f1"] + (int)$r["f2"] + (int)$r["f3"];
+    $stats = [
+        "total"     => $tot,
+        "certified" => $cert,
+        "completed" => $comp,
+        "expected"  => $tot * 3,
+        "pct"       => $tot ? (int)round($comp / ($tot*3) * 100) : 0,
+        "cert_pct"  => $tot ? (int)round($cert / $tot * 100) : 0,
+    ];
+    @file_put_contents($statsFile, json_encode($stats));
+    out_cached(array_merge(["ok"=>true], $stats), "cert_stats_official_v2", SIM_TTL);
 
 case "activities.demorp6":
     $ids_csv = trim($in["ids"] ?? "");
@@ -1064,69 +999,25 @@ case "sim.topstats":
     } catch(Exception $e) { err("DB error: ".$e->getMessage(), 503); }
 
 case "cert.count":
-    // Certified = completed all 3 sims assigned to their line (by sim pattern, not mb_idTag1).
-    // Completion-only. Uses CERT_WINDOW.from = 2026-06-01.
-    // Line → assigned saex_useCases IDs (mirrors src/lib/certification.ts CERT_LINES).
-    $CERT_LINE_SIMS = [
-        1  => [399, 490, 390],   // Titanes
-        2  => [493, 413, 448],   // Pegasos
-        3  => [406, 492, 455],   // Perseus
-        5  => [428, 457, 488],   // Argonautas
-        6  => [464, 436, 484],   // Minotauros
-        7  => [409, 449, 420],   // Apolos
-        8  => [489, 460, 468],   // Poseidón
-        9  => [445, 410, 491],   // Horus
-        10 => [461, 402, 432],   // Cíclopes
-        11 => [453, 419, 403],   // Cronos
-        12 => [465, 405, 446],   // Atlantes
-        23 => [420, 408, 440],   // Fenix
-        24 => [421, 423, 439],   // Vulcanos
-        25 => [467, 433, 462],   // Ares
-        28 => [411, 454, 481],   // Proteus
-    ];
-    $CERT_DATE_FROM = "2026-06-01 00:00:00";
-    $cache_key = "cert_count|v3";
+    // Exact official query from rolePlay_sanfer_v3.profiles_assigned — same source
+    // as rolplaysanfer.com/home/reportes/view/certificacion.php.
+    // Certified = prf_assigned_fase1=1 AND fase2=1 AND fase3=1, mb_admin != 97.
+    $cache_key = "cert_count_official";
     if(empty($in["refresh"])) serve_cached($cache_key, SIM_TTL);
-
-    // All 44 unique cert sim IDs (flat list)
-    $all_cert_ids = array_unique(array_merge(...array_values($CERT_LINE_SIMS)));
-    $ph = implode(",", array_fill(0, count($all_cert_ids), "?"));
-
-    // Get all (email → set of completed cert simIds) from roleplay_demorp6
     try {
-        $params = array_merge([DB_CLIENT, $CERT_DATE_FROM], $all_cert_ids);
-        $st = pdo()->prepare("
-            SELECT LOWER(saex_rp_email) AS email, saex_useCases AS sim_id
-            FROM   sale_exercises
-            WHERE  saex_rp_client = ?
-              AND  saex_DateTime  >= ?
-              AND  saex_useCases  IN ($ph)
-              AND  saex_rp_email  IS NOT NULL
-              AND  saex_rp_email  != ''
-              AND  saex_rp_email  NOT LIKE '%rolplay%'
-            GROUP BY LOWER(saex_rp_email), saex_useCases
-        ");
-        $st->execute($params);
-    } catch(Exception $e) { err("DB error: ".$e->getMessage(), 503); }
-
-    $user_sims = []; // email => [simId, ...]
-    while($r = $st->fetch()) {
-        $email = $r["email"];
-        if(!isset($user_sims[$email])) $user_sims[$email] = [];
-        $user_sims[$email][] = (int)$r["sim_id"];
-    }
-
-    // Count certified: user completed all 3 sims of ANY line (first matching line wins).
-    // No mb_idTag1 lookup needed — verified: all 884 certified users map to exactly
-    // one line by sim pattern, 0 ambiguous cases. Matches platform count of 883.
-    $certified = 0;
-    foreach($user_sims as $email => $done) {
-        foreach($CERT_LINE_SIMS as $required) {
-            if(count(array_intersect($required, $done)) === 3) { $certified++; break; }
-        }
-    }
-
-    out_cached(["ok"=>true,"certified"=>$certified], $cache_key, SIM_TTL);
+        $r = official_pdo()->query("
+            SELECT COUNT(DISTINCT m.mb_id) AS certified
+            FROM   members m
+            JOIN   profiles_assigned pa ON m.mb_id = pa.prf_assigned_user
+            JOIN   sales_line bhl ON pa.prf_assigned_profile = bhl.bhl_id
+            WHERE  m.mb_admin != 97
+              AND  bhl.bhl_id IN (".CERT_LINE_IDS.")
+              AND  pa.prf_assigned_fase1 = 1
+              AND  pa.prf_assigned_fase2 = 1
+              AND  pa.prf_assigned_fase3 = 1
+        ")->fetch();
+    } catch(Exception $e) { err("official DB error: ".$e->getMessage(), 503); }
+    out_cached(["ok"=>true,"certified"=>(int)$r["certified"]], $cache_key, SIM_TTL);
 
 default:
     out(["ok"=>true,"bridge"=>"Rolplay Sanfer Bridge v1.6","db"=>DB_NAME,"client"=>DB_CLIENT,"actions"=>["ping","sim.demorp6","sim.report","objections.demorp6","activities.demorp6","org.members","org.admins","cert.count"]]);

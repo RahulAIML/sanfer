@@ -200,10 +200,10 @@ export interface TopStatsResponse {
 export interface CertStats {
   ok:        boolean
   cached?:   boolean
-  total:     number   // cert-line members in org DB (937)
-  certified: number   // members who completed all 3 assigned sims (805 in org DB)
-  completed: number   // sum of fase1+fase2+fase3 across all members (2417)
-  expected:  number   // total × 3 (2811)
-  pct:       number   // completed/expected % (86)
-  cert_pct:  number   // certified/total % (86)
+  total:     number   // cert-line members from rolePlay_sanfer_v3 (matches official platform)
+  certified: number   // members with fase1=fase2=fase3=1
+  completed: number   // sum of fase1+fase2+fase3 across all members
+  expected:  number   // total × 3
+  pct:       number   // completed/expected %
+  cert_pct:  number   // certified/total %
 }

@@ -6,8 +6,8 @@ import {
 } from '../lib/analytics'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
-import { CERT_TOTAL_SLOTS, countCertLineMembers } from '../lib/certification'
-import { useTopStats, useCertCount } from '../api/queries'
+import { CERT_TOTAL_SLOTS } from '../lib/certification'
+import { useTopStats, useCertStats } from '../api/queries'
 import { DateRangeFilter } from '../components/ui/DateRangeFilter'
 import { downloadCSV, csvDate } from '../lib/csvExport'
 import { matchesSearch } from '../lib/searchUtils'
@@ -84,13 +84,12 @@ export default function OverviewPage() {
     refetch,
   } = useDashboardData()
 
-  // Cert % — DB-authoritative count divided by cert-line members only.
-  const { data: dbCertCount } = useCertCount()
-  const certLineMembers = useMemo(() => countCertLineMembers(members), [members])
+  // Cert % — official DB totals (rolePlay_sanfer_v3), exact match to rolplaysanfer.com.
+  const { data: certStats } = useCertStats()
   const certPct = useMemo(() => {
-    if (dbCertCount == null || !certLineMembers) return null
-    return Math.round((dbCertCount / certLineMembers) * 100)
-  }, [dbCertCount, certLineMembers])
+    if (!certStats?.total) return null
+    return Math.round((certStats.certified / certStats.total) * 100)
+  }, [certStats])
 
   // Skeleton only while sims are loading — activities are cached 24 h and arrive
   // almost immediately on any warm session.
