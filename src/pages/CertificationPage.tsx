@@ -106,19 +106,20 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified: prefer platform fase1=fase2=fase3=1 flags when available;
-      // fall back to session-count heuristic (≥3 distinct cert sims) otherwise.
+      // Certified: prefer platform fase1=fase2=fase3=1 flags when available.
+      // Fallback: completed ALL 3 sims assigned to THIS line specifically —
+      // not just any 3 cert sims (that over-counts by including cross-line sessions).
       const certified: CertifiedAdvisor[] = []
       for (const email of lineMembers) {
-        const mine     = bestScore.get(email)
-        const isCert   = usePlatformCert
+        const mine   = bestScore.get(email)
+        const isCert = usePlatformCert
           ? certifiedEmails.has(email)
-          : (mine?.size ?? 0) >= 3
+          : line.sims.every((sim) => mine?.has(sim.saexId))
         if (isCert) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
-            scores: mine ? [...mine.values()] : [],
+            scores: line.sims.map((sim) => mine?.get(sim.saexId) ?? 0),
           })
         }
       }
@@ -141,27 +142,20 @@ export default function CertificationPage() {
         })),
       }
     })
-  }, [sims, members])
+  }, [sims, members, certifiedEmails, usePlatformCert])
 
   const totals = useMemo(() => {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
     const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
-    // Certified count: use platform fase flags when the org.certification
-    // endpoint is live; otherwise fall back to ≥3 distinct cert sims heuristic.
-    let certifiedPeople: number
-    if (usePlatformCert) {
-      certifiedPeople = certifiedEmails.size
-    } else {
-      const byUser = new Map<string, Set<number>>()
-      for (const s of sims) {
-        const email = (s.Usuario ?? '').toLowerCase()
-        if (!email) continue
-        if (!byUser.has(email)) byUser.set(email, new Set())
-        byUser.get(email)!.add(s.ID_Caso_de_Uso)
-      }
-      certifiedPeople = [...byUser.values()].filter((m) => m.size >= 3).length
-    }
+    // Certified count: sum per-line certified arrays so the total is always
+    // consistent with what the line cards show.
+    // - Platform cert: certifiedEmails.size (from fase flags)
+    // - Fallback: per-line every() check already enforces line-specific sims,
+    //   so summing avoids the over-count that came from scanning all sims globally.
+    const certifiedPeople = usePlatformCert
+      ? certifiedEmails.size
+      : lines.reduce((n, l) => n + l.certified.length, 0)
     return {
       expected,
       completed,
@@ -171,7 +165,7 @@ export default function CertificationPage() {
       pct:      expected ? Math.round((completed / expected) * 100) : 0,
       passPct:  completed ? Math.round((passed / completed) * 100) : 0,
     }
-  }, [lines, sims])
+  }, [lines, sims, certifiedEmails, usePlatformCert])
 
   if (isLoading) {
     return (
