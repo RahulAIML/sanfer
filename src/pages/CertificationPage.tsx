@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSimulations, useMembers } from '../api/queries'
+import { useSimulations, useMembers, useCertificationProfiles } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
@@ -38,10 +38,26 @@ export default function CertificationPage() {
   // Fixed certification window — independent of the global dashboard filter
   const simsQ    = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
   const membersQ = useMembers()
+  const certQ    = useCertificationProfiles()
 
   const isLoading = simsQ.isLoading || membersQ.isLoading
   const sims      = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
   const members   = membersQ.data ?? []
+
+  // Set of emails that have fase1=fase2=fase3=1 in profiles_assigned.
+  // Empty when the org.certification bridge endpoint isn't deployed yet — the
+  // fallback below uses the session-count heuristic in that case.
+  const certifiedEmails: Set<string> = useMemo(() => {
+    const profiles = certQ.data ?? []
+    if (!profiles.length) return new Set()
+    return new Set(
+      profiles
+        .filter((p) => p.fase1 === 1 && p.fase2 === 1 && p.fase3 === 1)
+        .map((p) => p.mb_user),
+    )
+  }, [certQ.data])
+
+  const usePlatformCert = (certQ.data?.length ?? 0) > 0
 
   const lines: LineProgress[] = useMemo(() => {
     // line tagId → active member emails (lowercased) — excludes internal accounts
@@ -90,15 +106,19 @@ export default function CertificationPage() {
         const email = (s.Usuario ?? '').toLowerCase()
         if (lineMembers.has(email) && line.sims.some((x) => x.saexId === s.ID_Caso_de_Uso)) sessions++
       }
-      // Certified: line member who completed ≥3 distinct cert simulators (platform criterion).
+      // Certified: prefer platform fase1=fase2=fase3=1 flags when available;
+      // fall back to session-count heuristic (≥3 distinct cert sims) otherwise.
       const certified: CertifiedAdvisor[] = []
       for (const email of lineMembers) {
-        const mine = bestScore.get(email)
-        if (mine && mine.size >= 3) {
+        const mine     = bestScore.get(email)
+        const isCert   = usePlatformCert
+          ? certifiedEmails.has(email)
+          : (mine?.size ?? 0) >= 3
+        if (isCert) {
           certified.push({
             email,
             name:   normalizeName(advisorName.get(email) ?? email),
-            scores: [...mine.values()],
+            scores: mine ? [...mine.values()] : [],
           })
         }
       }
@@ -127,16 +147,21 @@ export default function CertificationPage() {
     const expected  = lines.reduce((a, l) => a + l.expected, 0)
     const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
-    // Count directly from sims: any user with ≥3 distinct cert sims = certified.
-    // This matches the official platform (391) and catches users not in CERT_LINES.
-    const byUser = new Map<string, Set<number>>()
-    for (const s of sims) {
-      const email = (s.Usuario ?? '').toLowerCase()
-      if (!email) continue
-      if (!byUser.has(email)) byUser.set(email, new Set())
-      byUser.get(email)!.add(s.ID_Caso_de_Uso)
+    // Certified count: use platform fase flags when the org.certification
+    // endpoint is live; otherwise fall back to ≥3 distinct cert sims heuristic.
+    let certifiedPeople: number
+    if (usePlatformCert) {
+      certifiedPeople = certifiedEmails.size
+    } else {
+      const byUser = new Map<string, Set<number>>()
+      for (const s of sims) {
+        const email = (s.Usuario ?? '').toLowerCase()
+        if (!email) continue
+        if (!byUser.has(email)) byUser.set(email, new Set())
+        byUser.get(email)!.add(s.ID_Caso_de_Uso)
+      }
+      certifiedPeople = [...byUser.values()].filter((m) => m.size >= 3).length
     }
-    const certifiedPeople = [...byUser.values()].filter((m) => m.size >= 3).length
     return {
       expected,
       completed,

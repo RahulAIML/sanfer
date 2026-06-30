@@ -1,6 +1,7 @@
 import type {
   ActivitiesResponse,
   AdminsResponse,
+  CertificationProfilesResponse,
   LinesResponse,
   MembersResponse,
   ObjectionsResponse,
@@ -152,6 +153,21 @@ export async function fetchAdmins(signal?: AbortSignal): Promise<AdminsResponse>
       !isInternalEmail(a.rpa_email),
     )
     .map((a) => ({ ...a, rpa_full_name: decodeEntities(a.rpa_full_name) }))
+  return { ...resp, data, count: data.length }
+}
+
+// Certification phase flags from profiles_assigned.
+// Requires the bridge org.certification action (PHP side) — returns empty data
+// if the action is not yet deployed; the CertificationPage falls back to the
+// session-count heuristic in that case.
+export async function fetchCertificationProfiles(signal?: AbortSignal): Promise<CertificationProfilesResponse> {
+  const resp = await fetchJSON<CertificationProfilesResponse>(
+    `${BRIDGE_BASE}/?action=org.certification`, signal,
+  )
+  const data = (resp.data ?? []).map((p) => ({
+    ...p,
+    mb_user: p.mb_user.toLowerCase(),
+  }))
   return { ...resp, data, count: data.length }
 }
 

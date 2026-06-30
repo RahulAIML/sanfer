@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
+import { fetchActivities, fetchAdmins, fetchCertificationProfiles, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
 import type { MembersResponse } from './types'
 import { resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -143,6 +143,27 @@ export function useTopStats() {
   return useQuery({
     queryKey:  ['topStats'],
     queryFn:   ({ signal }) => fetchTopStats(signal),
+    staleTime: STALE.org,
+    gcTime:    GC.org,
+  })
+}
+
+/**
+ * Certification phase flags from profiles_assigned.
+ * Returns an empty array (not an error) when the bridge endpoint is not yet
+ * deployed — callers should fall back to session-based heuristics in that case.
+ */
+export function useCertificationProfiles() {
+  return useQuery({
+    queryKey:  ['certificationProfiles'],
+    queryFn:   async ({ signal }) => {
+      try {
+        const res = await fetchCertificationProfiles(signal)
+        return res.data
+      } catch {
+        return []
+      }
+    },
     staleTime: STALE.org,
     gcTime:    GC.org,
   })

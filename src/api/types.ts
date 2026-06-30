@@ -133,6 +133,29 @@ export interface AdminsResponse {
 }
 
 // ─────────────────────────────────────────────
+// profiles_assigned — certification phase flags
+// Served by the bridge org.certification proxy.
+// fase1/2/3 = 1 means the rep completed that phase; all three = certified.
+// ─────────────────────────────────────────────
+export interface CertificationProfile {
+  mb_user:     string   // email — join key to members and simulations
+  profile_id:  number   // sales_line.bhl_id
+  finalized:   number   // 0 | 1
+  fase1:       number   // 0 | 1
+  fase1_score: number | null
+  fase2:       number   // 0 | 1
+  fase2_score: number | null
+  fase3:       number   // 0 | 1
+  fase3_score: number | null
+}
+
+export interface CertificationProfilesResponse {
+  ok:    boolean
+  data:  CertificationProfile[]
+  count: number
+}
+
+// ─────────────────────────────────────────────
 // DIM_LINE (tag1) — Sanfer-specific
 // ─────────────────────────────────────────────
 export interface LineTag {
