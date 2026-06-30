@@ -599,8 +599,50 @@ case "org.certification":
         }
     }
 
+    // Compute aggregate stats and cache them for cert.stats endpoint
+    $certifiedCount = 0; $completedCount = 0;
+    foreach($rows as $r) {
+        if($r['finalized']) $certifiedCount++;
+        $completedCount += ($r['fase1'] ?? 0) + ($r['fase2'] ?? 0) + ($r['fase3'] ?? 0);
+    }
+    $certStats = [
+        "total"     => count($rows),
+        "certified" => $certifiedCount,
+        "completed" => $completedCount,
+        "expected"  => count($rows) * 3,
+        "pct"       => count($rows) ? round($completedCount / (count($rows)*3) * 100) : 0,
+        "cert_pct"  => count($rows) ? round($certifiedCount / count($rows) * 100) : 0,
+    ];
+    @file_put_contents(sys_get_temp_dir()."/sanfer_cert_stats.json", json_encode($certStats));
     @file_put_contents($cacheFile, json_encode($rows, JSON_UNESCAPED_UNICODE));
-    out(["ok"=>true,"cached"=>false,"count"=>count($rows),"data"=>$rows]);
+    out(["ok"=>true,"cached"=>false,"count"=>count($rows),"data"=>$rows,"stats"=>$certStats]);
+
+case "cert.stats":
+    // Lightweight aggregate stats: total members, certified, completed/expected slots.
+    // Serves the global progress bar without fetching the full per-user payload.
+    $statsFile = sys_get_temp_dir()."/sanfer_cert_stats.json";
+    if(empty($in["refresh"]) && is_file($statsFile) && time()-filemtime($statsFile) < METRIC_TTL) {
+        $s = json_decode((string)file_get_contents($statsFile), true);
+        if(is_array($s) && isset($s["total"])) out(array_merge(["ok"=>true,"cached"=>true], $s));
+    }
+    // Stats cache is stale — derive from org.certification cache if available
+    $certCache = sys_get_temp_dir()."/sanfer_org_certification.json";
+    if(is_file($certCache) && time()-filemtime($certCache) < METRIC_TTL) {
+        $rows2 = json_decode((string)file_get_contents($certCache), true);
+        if(is_array($rows2) && count($rows2) > 0) {
+            $tot = count($rows2); $cert2 = 0; $comp2 = 0;
+            foreach($rows2 as $r) {
+                if($r['finalized']) $cert2++;
+                $comp2 += ($r['fase1']??0)+($r['fase2']??0)+($r['fase3']??0);
+            }
+            $s2 = ["total"=>$tot,"certified"=>$cert2,"completed"=>$comp2,"expected"=>$tot*3,
+                   "pct"=>$tot?round($comp2/($tot*3)*100):0,"cert_pct"=>$tot?round($cert2/$tot*100):0];
+            @file_put_contents($statsFile, json_encode($s2));
+            out(array_merge(["ok"=>true,"cached"=>false], $s2));
+        }
+    }
+    // No cache available — client should call org.certification to warm
+    err("cert.stats cache empty — call ?action=org.certification first", 503);
 
 case "activities.demorp6":
     $ids_csv = trim($in["ids"] ?? "");

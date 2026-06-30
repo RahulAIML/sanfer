@@ -1,6 +1,7 @@
 import type {
   ActivitiesResponse,
   AdminsResponse,
+  CertStats,
   LinesResponse,
   MembersResponse,
   ObjectionsResponse,
@@ -146,4 +147,18 @@ export async function fetchObjections(
 export async function fetchCertCount(signal?: AbortSignal): Promise<number> {
   const data = await fetchJSON<{ certified: number }>(`${BRIDGE_BASE}/?action=cert.count`, signal)
   return data.certified
+}
+
+/**
+ * Aggregate cert stats from the DB bridge — total members, certified, completed/expected slots.
+ * Falls back to warming org.certification cache first if cert.stats cache is empty.
+ */
+export async function fetchCertStats(signal?: AbortSignal): Promise<CertStats> {
+  try {
+    return await fetchJSON<CertStats>(`${BRIDGE_BASE}/?action=cert.stats`, signal)
+  } catch {
+    // Cache was empty — warm it by calling org.certification, then retry
+    await fetchJSON<unknown>(`${BRIDGE_BASE}/?action=org.certification`, signal)
+    return fetchJSON<CertStats>(`${BRIDGE_BASE}/?action=cert.stats`, signal)
+  }
 }

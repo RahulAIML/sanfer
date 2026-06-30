@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSimulations, useMembers, useCertCount } from '../api/queries'
+import { useSimulations, useMembers, useCertCount, useCertStats } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
@@ -40,6 +40,7 @@ export default function CertificationPage() {
   const membersQ = useMembers()
 
   const certCountQ = useCertCount()
+  const certStatsQ = useCertStats()
   const isLoading = simsQ.isLoading || membersQ.isLoading
   const sims      = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
   const members   = membersQ.data ?? []
@@ -159,10 +160,13 @@ export default function CertificationPage() {
     [lines]
   )
 
+  // Global progress — DB-sourced from cert.stats (bridge queries org DB + sim DB server-side).
+  // Falls back to client-side totals while the DB query is in-flight.
+  const dbStats = certStatsQ.data
   const totals = useMemo(() => {
-    const expected  = lines.reduce((a, l) => a + l.expected, 0)
-    const completed = lines.reduce((a, l) => a + l.completed, 0)
     const passed    = lines.reduce((a, l) => a + l.passed, 0)
+    const completed = dbStats?.completed ?? lines.reduce((a, l) => a + l.completed, 0)
+    const expected  = dbStats?.expected  ?? lines.reduce((a, l) => a + l.expected, 0)
     return {
       expected,
       completed,
@@ -171,7 +175,7 @@ export default function CertificationPage() {
       pct:     expected ? Math.round((completed / expected) * 100) : 0,
       passPct: completed ? Math.round((passed / completed) * 100) : 0,
     }
-  }, [lines, sims])
+  }, [lines, sims, dbStats])
 
   if (isLoading) {
     return (

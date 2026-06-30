@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchCertCount, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
+import { fetchActivities, fetchAdmins, fetchCertCount, fetchCertStats, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
 import type { MembersResponse } from './types'
 import { resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -141,6 +141,16 @@ export function useCertCount() {
     queryFn:   ({ signal }) => fetchCertCount(signal),
     staleTime: STALE.simulations,
     gcTime:    GC.simulations,
+  })
+}
+
+/** DB-sourced cert aggregate stats: total, certified, completed/expected slots, pct. */
+export function useCertStats() {
+  return useQuery({
+    queryKey:  ['certStats'],
+    queryFn:   ({ signal }) => fetchCertStats(signal),
+    staleTime: STALE.org,
+    gcTime:    GC.org,
   })
 }
 

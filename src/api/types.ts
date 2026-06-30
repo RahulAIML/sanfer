@@ -193,3 +193,17 @@ export interface TopStatsResponse {
   stats:     TopStatsAggregate
   top_users: TopStatsUser[]
 }
+
+// ─────────────────────────────────────────────
+// Cert aggregate stats (bridge action=cert.stats)
+// ─────────────────────────────────────────────
+export interface CertStats {
+  ok:        boolean
+  cached?:   boolean
+  total:     number   // cert-line members in org DB (937)
+  certified: number   // members who completed all 3 assigned sims (805 in org DB)
+  completed: number   // sum of fase1+fase2+fase3 across all members (2417)
+  expected:  number   // total × 3 (2811)
+  pct:       number   // completed/expected % (86)
+  cert_pct:  number   // certified/total % (86)
+}
