@@ -60,13 +60,10 @@ function isTesterMember(m: { mb_admin: number; mb_user: string; mb_fullname: str
   if (TESTER_ADMIN_IDS.has(m.mb_admin)) return true
   const user = m.mb_user.toLowerCase()
   const name = m.mb_fullname.toLowerCase()
-  return (
-    user.includes('tester') ||
-    user.includes('prueba') ||
-    user.includes('demo')   ||
-    name.includes('prueba') ||
-    name.includes('capacit')
-  )
+  // Mirrors Mexico team SQL: mb_user/mb_fullname LIKE '%tester%' OR '%prueba%' OR
+  // '%demo%' OR '%capacitacion%' OR '%vacante%'
+  const KEYWORDS = ['tester', 'prueba', 'demo', 'capacit', 'vacante']
+  return KEYWORDS.some((k) => user.includes(k) || name.includes(k))
 }
 
 // ─────────────────────────────────────────────
