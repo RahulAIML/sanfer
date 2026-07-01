@@ -355,7 +355,7 @@ export default function OverviewPage() {
         <KpiCard label={t('kpi_active_advisors')}  value={activeKpis!.activeAdvisors}              sub={t('sub_with_simulations')}  icon={UserCheck}   iconBg="bg-purple-100 dark:bg-purple-900/20" iconColor="text-purple-600 dark:text-purple-400" delta={advisorsDelta} es={es} />
         <KpiCard label={t('kpi_cert_pct')}         value={certPct !== null ? `${certPct}%` : '…'} sub={t('sub_cert_pct')}          icon={BadgeCheck}  iconBg="bg-red-100 dark:bg-red-900/20"     iconColor="text-red-600 dark:text-red-400"     />
         <KpiCard label={t('kpi_total_activities')} value={CERT_TOTAL_SLOTS}                        sub={t('sub_cert_slots')}        icon={Layers}      iconBg="bg-orange-100 dark:bg-orange-900/20" iconColor="text-orange-600 dark:text-orange-400" />
-        <KpiCard label={t('kpi_total_members')}    value={kpis?.totalMembers ?? '…'}               sub={t('sub_registered')}        icon={Users}       iconBg="bg-slate-100 dark:bg-slate-800"    iconColor="text-slate-600 dark:text-slate-400" />
+        <KpiCard label={t('kpi_total_members')}    value={certStats?.total ?? '…'}                 sub={t('sub_registered')}        icon={Users}       iconBg="bg-slate-100 dark:bg-slate-800"    iconColor="text-slate-600 dark:text-slate-400" />
       </div>
 
       {/* Score Trend */}
