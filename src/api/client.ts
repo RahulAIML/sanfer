@@ -1,6 +1,7 @@
 import type {
   ActivitiesResponse,
   AdminsResponse,
+  CertificationResponse,
   CertStats,
   LinesResponse,
   MembersResponse,
@@ -152,4 +153,9 @@ export async function fetchCertCount(signal?: AbortSignal): Promise<number> {
 /** Aggregate cert stats — total, certified, completed/expected. Direct query on official DB. */
 export async function fetchCertStats(signal?: AbortSignal): Promise<CertStats> {
   return fetchJSON<CertStats>(`${BRIDGE_BASE}/?action=cert.stats`, signal)
+}
+
+/** Per-user cert rows from profiles_assigned — official DB, exact same source as rolplaysanfer.com. */
+export async function fetchCertification(signal?: AbortSignal): Promise<CertificationResponse> {
+  return fetchJSON<CertificationResponse>(`${BRIDGE_BASE}/?action=org.certification`, signal)
 }

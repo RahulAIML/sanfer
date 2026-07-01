@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSimulations, useMembers, useCertCount, useCertStats } from '../api/queries'
+import { useSimulations, useOrgCertification, useCertStats } from '../api/queries'
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { filterTestUsers, normalizeName } from '../lib/analytics'
@@ -9,12 +9,10 @@ import {
   BadgeCheck, CalendarRange, GitBranch, Layers, PlayCircle, Users, Award,
 } from 'lucide-react'
 
-// Completion-only: certified = has at least one session on every assigned sim
-
 interface CertifiedAdvisor {
   email: string
   name: string
-  scores: number[]  // best score per assigned sim slot, for display only
+  scores: number[]
 }
 
 interface LineProgress {
@@ -22,10 +20,10 @@ interface LineProgress {
   name: string
   jefe: string
   memberCount: number
-  expected: number       // members × 3 assigned sims
-  completed: number      // distinct (advisor, assigned sim) pairs with a session
-  passed: number         // of those, pairs whose best session passed
-  sessions: number       // raw session count on the line's sims (line members only)
+  expected: number
+  completed: number
+  passed: number
+  sessions: number
   certified: CertifiedAdvisor[]
   simStats: { product: string; saexId: number; sessions: number; passed: number }[]
 }
@@ -35,122 +33,64 @@ export default function CertificationPage() {
   const t  = useTranslation(language)
   const es = language === 'es'
 
-  // Fixed certification window — independent of the global dashboard filter
+  // Simulation data — still needed for raw session counts and per-sim stats
   const simsQ    = useSimulations(CERT_WINDOW.from, CERT_WINDOW.to)
-  const membersQ = useMembers()
-
-  const certCountQ = useCertCount()
+  // Official per-user cert data from profiles_assigned — single source of truth
+  const certDataQ = useOrgCertification()
   const certStatsQ = useCertStats()
-  const isLoading = simsQ.isLoading || membersQ.isLoading
-  const sims      = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
-  const members   = membersQ.data ?? []
+
+  const isLoading = certDataQ.isLoading || simsQ.isLoading
+  const sims = useMemo(() => filterTestUsers(simsQ.data ?? []), [simsQ.data])
 
   const lines: LineProgress[] = useMemo(() => {
-    // membersByLine — used for memberCount, expected, completed, passed, sessions.
-    // Excludes internal accounts per Silverio's confirmed keyword list (2026-06-22).
-    const EXCLUDED_ADMINS = new Set([35, 103])
-    const membersByLine = new Map<number, Set<string>>()
-    for (const m of members) {
-      if (m.mb_status !== 1 || !m.mb_idTag1 || !m.mb_user) continue
-      if (EXCLUDED_ADMINS.has(m.mb_admin)) continue
-      const email = m.mb_user.toLowerCase()
-      const name  = (m.mb_fullname ?? '').toLowerCase()
-      if (email.includes('test') || email.includes('demo') || email.includes('prueb') || email.includes('vacant') || email.includes('rolplay')) continue
-      if (name.includes('capacit') || name.includes('prueb')) continue
-      if (!membersByLine.has(m.mb_idTag1)) membersByLine.set(m.mb_idTag1, new Set())
-      membersByLine.get(m.mb_idTag1)!.add(email)
+    const certRows = certDataQ.data?.data ?? []
+
+    // Group official cert rows by profile_id (= line tagId in rolePlay_sanfer_v3)
+    const byLine = new Map<number, typeof certRows>()
+    for (const row of certRows) {
+      if (!byLine.has(row.profile_id)) byLine.set(row.profile_id, [])
+      byLine.get(row.profile_id)!.push(row)
     }
 
-    // Build per-user sim completion maps from actual session data
-    const pairPassed  = new Map<string, boolean>()
-    const simsById    = new Map<number, { sessions: number; passedUsers: Set<string> }>()
-    const bestScore   = new Map<string, Map<number, number>>()  // email → simId → best score
-    const advisorName = new Map<string, string>()
-    const userDone    = new Map<string, Set<number>>()           // email → completed cert simIds
-
-    const CERT_SIM_IDS = new Set(CERT_LINES.flatMap((l) => l.sims.map((s) => s.saexId)))
-
+    // Session stats from sim data — supplementary (raw counts, per-sim pass rates)
+    const simSessionCount = new Map<number, number>()
+    const simPassedUsers  = new Map<number, Set<string>>()
     for (const s of sims) {
-      const email = (s.Usuario ?? '').toLowerCase()
-      if (!email) continue
-      if (s.Usuario_Nombre) advisorName.set(email, s.Usuario_Nombre)
-      const key  = `${email}|${s.ID_Caso_de_Uso}`
-      const pass = s.Diagnostico_Final?.toLowerCase() === 'si'
-      pairPassed.set(key, (pairPassed.get(key) ?? false) || pass)
-      if (!bestScore.has(email)) bestScore.set(email, new Map())
-      const mine = bestScore.get(email)!
-      mine.set(s.ID_Caso_de_Uso, Math.max(mine.get(s.ID_Caso_de_Uso) ?? 0, s.Calificacion))
-      if (!simsById.has(s.ID_Caso_de_Uso)) simsById.set(s.ID_Caso_de_Uso, { sessions: 0, passedUsers: new Set() })
-      const agg = simsById.get(s.ID_Caso_de_Uso)!
-      agg.sessions++
-      if (pass) agg.passedUsers.add(email)
-      if (CERT_SIM_IDS.has(s.ID_Caso_de_Uso)) {
-        if (!userDone.has(email)) userDone.set(email, new Set())
-        userDone.get(email)!.add(s.ID_Caso_de_Uso)
+      const id = s.ID_Caso_de_Uso
+      simSessionCount.set(id, (simSessionCount.get(id) ?? 0) + 1)
+      if (s.Diagnostico_Final?.toLowerCase() === 'si') {
+        if (!simPassedUsers.has(id)) simPassedUsers.set(id, new Set())
+        simPassedUsers.get(id)!.add((s.Usuario ?? '').toLowerCase())
       }
     }
-
-    // Assign each certified user to their line by sim pattern (first matching line wins).
-    // Does NOT rely on mb_idTag1 — verified that all 884 certified users map to exactly
-    // one line by pattern, matching the platform's count of 883.
-    const certByLine = new Map<number, CertifiedAdvisor[]>(CERT_LINES.map((l) => [l.tagId, []]))
-    for (const [email, done] of userDone) {
-      for (const line of CERT_LINES) {
-        if (line.sims.every((sim) => done.has(sim.saexId))) {
-          const mine = bestScore.get(email)
-          certByLine.get(line.tagId)!.push({
-            email,
-            name:   normalizeName(advisorName.get(email) ?? email),
-            scores: line.sims.map((sim) => mine?.get(sim.saexId) ?? 0),
-          })
-          break  // each user belongs to exactly one line
-        }
-      }
-    }
-    for (const arr of certByLine.values()) arr.sort((a, b) => a.name.localeCompare(b.name))
 
     return CERT_LINES.map((line) => {
-      const lineMembers = membersByLine.get(line.tagId) ?? new Set<string>()
-      let completed = 0, passed = 0, sessions = 0
+      const lineRows    = byLine.get(line.tagId) ?? []
+      const memberCount = lineRows.length
+      const expected    = memberCount * CERT_MIN_SIMS
+      const completed   = lineRows.reduce((a, r) => a + (r.fase1 ?? 0) + (r.fase2 ?? 0) + (r.fase3 ?? 0), 0)
+      const passed      = completed  // fase=1 means completed+passed in official DB
+      const sessions    = line.sims.reduce((a, s) => a + (simSessionCount.get(s.saexId) ?? 0), 0)
 
-      // per-sim stats scoped to this line's members — avoids double-counting shared sims
-      const lineSimAgg = new Map<number, { sessions: number; passedUsers: Set<string> }>(
-        line.sims.map((s) => [s.saexId, { sessions: 0, passedUsers: new Set() }])
-      )
+      const certified: CertifiedAdvisor[] = lineRows
+        .filter((r) => r.finalized === 1)
+        .map((r) => ({
+          email:  r.mb_user,
+          name:   normalizeName(r.nombre ?? r.mb_user),
+          scores: [r.fase1_score ?? 0, r.fase2_score ?? 0, r.fase3_score ?? 0],
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name))
 
-      for (const email of lineMembers) {
-        for (const sim of line.sims) {
-          const v = pairPassed.get(`${email}|${sim.saexId}`)
-          if (v !== undefined) { completed++; if (v) passed++ }
-        }
-      }
-      for (const s of sims) {
-        const email = (s.Usuario ?? '').toLowerCase()
-        if (!lineMembers.has(email)) continue
-        const agg = lineSimAgg.get(s.ID_Caso_de_Uso)
-        if (!agg) continue
-        agg.sessions++
-        sessions++
-        if (s.Diagnostico_Final?.toLowerCase() === 'si') agg.passedUsers.add(email)
-      }
+      const simStats = line.sims.map((s) => ({
+        product:  s.product,
+        saexId:   s.saexId,
+        sessions: simSessionCount.get(s.saexId) ?? 0,
+        passed:   simPassedUsers.get(s.saexId)?.size ?? 0,
+      }))
 
-      return {
-        tagId:       line.tagId,
-        name:        line.name,
-        jefe:        line.jefe,
-        memberCount: lineMembers.size,
-        expected:    lineMembers.size * CERT_MIN_SIMS,
-        completed,
-        passed,
-        sessions,
-        certified:   certByLine.get(line.tagId)!,
-        simStats: line.sims.map((sim) => {
-          const agg = lineSimAgg.get(sim.saexId)!
-          return { product: sim.product, saexId: sim.saexId, sessions: agg.sessions, passed: agg.passedUsers.size }
-        }),
-      }
+      return { tagId: line.tagId, name: line.name, jefe: line.jefe, memberCount, expected, completed, passed, sessions, certified, simStats }
     })
-  }, [sims, members])
+  }, [certDataQ.data, sims])
 
   // Certified count from official DB (rolePlay_sanfer_v3) — exact source of truth.
   // Falls back to client-side count while the DB query is in-flight.

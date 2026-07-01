@@ -195,6 +195,32 @@ export interface TopStatsResponse {
 }
 
 // ─────────────────────────────────────────────
+// Per-user cert row (bridge action=org.certification)
+// ─────────────────────────────────────────────
+export interface CertRow {
+  mb_user:     string        // lowercase email
+  nombre:      string | null // full name
+  empleado:    string | null // employee reference number
+  ruta:        string | null // route code
+  profile_id:  number        // bhl_id = line tagId in official DB
+  finalized:   0 | 1        // 1 = all 3 phases done
+  fase1:       0 | 1
+  fase1_score: number | null
+  fase2:       0 | 1
+  fase2_score: number | null
+  fase3:       0 | 1
+  fase3_score: number | null
+}
+
+export interface CertificationResponse {
+  ok:      boolean
+  cached?: boolean
+  count:   number
+  data:    CertRow[]
+  stats:   CertStats
+}
+
+// ─────────────────────────────────────────────
 // Cert aggregate stats (bridge action=cert.stats)
 // ─────────────────────────────────────────────
 export interface CertStats {

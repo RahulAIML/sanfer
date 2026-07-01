@@ -1,5 +1,5 @@
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { fetchActivities, fetchAdmins, fetchCertCount, fetchCertStats, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
+import { fetchActivities, fetchAdmins, fetchCertCount, fetchCertification, fetchCertStats, fetchLines, fetchMembers, fetchObjections, fetchSimReport, fetchSimulations, fetchTopStats } from './client'
 import type { MembersResponse } from './types'
 import { resolveEffectiveDates } from '../lib/dateUtils'
 
@@ -141,6 +141,16 @@ export function useCertCount() {
     queryFn:   ({ signal }) => fetchCertCount(signal),
     staleTime: STALE.simulations,
     gcTime:    GC.simulations,
+  })
+}
+
+/** Per-user cert rows from profiles_assigned — official DB, drives CertificationPage per-line breakdown. */
+export function useOrgCertification() {
+  return useQuery({
+    queryKey:  ['orgCertification'],
+    queryFn:   ({ signal }) => fetchCertification(signal),
+    staleTime: STALE.org,
+    gcTime:    GC.org,
   })
 }
 
