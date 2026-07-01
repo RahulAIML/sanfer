@@ -1,6 +1,7 @@
 import { useAppStore } from '../store'
 import { useTranslation } from '../lib/i18n'
 import { useDashboardData } from '../hooks/useDashboardData'
+import { useCertStats } from '../api/queries'
 import { FileDown, BarChart3, GitBranch, Users, Activity } from 'lucide-react'
 
 function ReportCard({
@@ -34,6 +35,7 @@ export default function ReportsPage() {
   const { language } = useAppStore()
   const t = useTranslation(language)
   const { kpis, sims } = useDashboardData()
+  const { data: certStats } = useCertStats()
 
   const simCount = kpis?.totalSimulations ?? 0
 
@@ -90,7 +92,7 @@ export default function ReportsPage() {
           { icon: BarChart3, label: es ? 'Simulaciones' : 'Simulations', value: simCount.toLocaleString() },
           { icon: Users, label: es ? 'Usuarios Activos' : 'Active Users', value: String(kpis?.activeAdvisors ?? 0) },
           { icon: Activity, label: es ? 'Actividades' : 'Activities', value: String(kpis?.totalActivities ?? 0) },
-          { icon: GitBranch, label: es ? 'Miembros' : 'Members', value: String(kpis?.totalMembers ?? 0) },
+          { icon: GitBranch, label: es ? 'Miembros' : 'Members', value: String(certStats?.total ?? kpis?.totalMembers ?? 0) },
         ].map((item) => (
           <div key={item.label} className="card p-4 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
