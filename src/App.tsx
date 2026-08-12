@@ -1,12 +1,15 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Shell } from './components/layout/Shell'
 import { ErrorBoundary } from './components/ui/ErrorBoundary'
 import { ChartSkeleton } from './components/ui/Skeleton'
+import { AuthProvider, useAuthContext } from './components/AuthProvider'
+import { ProtectedRoute } from './components/ProtectedRoute'
 import { fetchActivities, fetchSimulations, fetchMembers, fetchAdmins, fetchObjections } from './api/client'
 import { resolveEffectiveDates } from './lib/dateUtils'
 import OverviewPage from './pages/OverviewPage'
+import LoginPage from './pages/LoginPage'
 
 const SimulationsPage = lazy(() => import('./pages/SimulationsPage'))
 const CertificationPage = lazy(() => import('./pages/CertificationPage'))
@@ -125,30 +128,53 @@ function PageFallback() {
   )
 }
 
+function AppRoutes() {
+  const { isAuthenticated } = useAuthContext()
+
+  return (
+    <Routes>
+      {!isAuthenticated ? (
+        <>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </>
+      ) : (
+        <Route
+          element={
+            <Shell>
+              <ErrorBoundary>
+                <Suspense fallback={<PageFallback />}>
+                  <Routes>
+                    <Route path="/" element={<OverviewPage />} />
+                    <Route path="/simulations" element={<SimulationsPage />} />
+                    <Route path="/certification" element={<CertificationPage />} />
+                    <Route path="/conversational" element={<ConversationalPage />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage />} />
+                    <Route path="/activities" element={<ActivitiesPage />} />
+                    <Route path="/organization" element={<OrganizationPage />} />
+                    <Route path="/coaching" element={<CoachingPage />} />
+                    <Route path="/business-lines" element={<BusinessLinesPage />} />
+                    <Route path="/reports" element={<ReportsPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="*" element={<NotFoundPage />} />
+                  </Routes>
+                </Suspense>
+              </ErrorBoundary>
+            </Shell>
+          }
+        />
+      )}
+    </Routes>
+  )
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Shell>
-          <ErrorBoundary>
-            <Suspense fallback={<PageFallback />}>
-              <Routes>
-                <Route path="/" element={<OverviewPage />} />
-                <Route path="/simulations" element={<SimulationsPage />} />
-                <Route path="/certification" element={<CertificationPage />} />
-                <Route path="/conversational" element={<ConversationalPage />} />
-                <Route path="/leaderboard" element={<LeaderboardPage />} />
-                <Route path="/activities" element={<ActivitiesPage />} />
-                <Route path="/organization" element={<OrganizationPage />} />
-                <Route path="/coaching" element={<CoachingPage />} />
-                <Route path="/business-lines" element={<BusinessLinesPage />} />
-                <Route path="/reports" element={<ReportsPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </Suspense>
-          </ErrorBoundary>
-        </Shell>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   )
