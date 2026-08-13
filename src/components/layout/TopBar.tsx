@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useAppStore, type Language } from '../../store'
 import { useTranslation } from '../../lib/i18n'
 import { cn } from '../../lib/cn'
+import { UserMenu } from './UserMenu'
 
 const LANGS: { code: Language; label: string; flag: string }[] = [
   { code: 'es', label: 'ES', flag: '🇲🇽' },
@@ -105,6 +106,7 @@ export const TopBar = memo(function TopBar() {
             </button>
           ))}
         </div>
+        <UserMenu />
       </div>
     </header>
   )
