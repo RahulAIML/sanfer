@@ -1,4 +1,4 @@
-import { verifyToken } from '../../auth-server.js'
+import { verifyToken } from '../auth-server.js'
 
 /**
  * Authenticated proxy to the upstream data API.
@@ -8,17 +8,21 @@ import { verifyToken } from '../../auth-server.js'
  * through a function puts the same token check in front of the data that
  * server.js applies on the Render deployment of this same repo.
  *
- * Keyed by the first path segment, which vercel.json supplies; the rest of the
- * path is forwarded. Targets mirror the proxy table in server.js.
+ * The route and remaining path arrive as query parameters rather than as
+ * dynamic path segments: a rewrite that targets a catch-all function does not
+ * populate the segment parameter, so a `[...path]` route received nothing to
+ * dispatch on. Targets mirror the proxy table in server.js.
  */
 const ROUTES = {
   sanfer: (rest) => `https://serv.aux-rolplay.com/sanfer/${rest}`,
 }
 
+// Prefixed so they cannot collide with a parameter the upstream API expects.
+const ROUTE_PARAM = '__route'
+const REST_PARAM = '__rest'
+
 export default async function handler(req, res) {
-  const segments = [].concat(req.query.path ?? [])
-  const [key, ...rest] = segments
-  const buildTarget = ROUTES[key]
+  const buildTarget = ROUTES[req.query[ROUTE_PARAM]]
   if (!buildTarget) {
     return res.status(404).json({ message: 'Unknown data route' })
   }
@@ -28,16 +32,16 @@ export default async function handler(req, res) {
     return res.status(401).json({ message: 'Unauthorized' })
   }
 
-  // Vercel merges the request's own query parameters into req.query alongside
-  // the dynamic segments, so rebuild the query string from everything but the
-  // path key. A repeated parameter arrives as an array.
+  // Everything except our two control parameters belongs to the upstream call.
+  // A repeated parameter arrives as an array.
   const search = new URLSearchParams()
   for (const [name, value] of Object.entries(req.query)) {
-    if (name === 'path') continue
+    if (name === ROUTE_PARAM || name === REST_PARAM) continue
     for (const item of [].concat(value)) search.append(name, item)
   }
   const qs = search.toString()
-  const target = `${buildTarget(rest.join('/'))}${qs ? `?${qs}` : ''}`
+  const rest = [].concat(req.query[REST_PARAM] ?? '').join('/')
+  const target = `${buildTarget(rest)}${qs ? `?${qs}` : ''}`
 
   const isGet = req.method === 'GET' || req.method === 'HEAD'
   try {
