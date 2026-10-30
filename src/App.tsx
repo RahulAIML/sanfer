@@ -38,7 +38,7 @@ const queryClient = new QueryClient({
   },
 })
 
-// ─── localStorage cache persistence ───────────────────────────────────────────
+// ─── localStorage cache persistence ──────────────────────────────────────────────────────
 // Restores the previous session's API responses so the dashboard feels instant
 // on every page load after the first. Fresh data fetches in the background.
 // v10: certification rule = completion-only (CTO confirmed, no score threshold)
@@ -146,6 +146,7 @@ function AppRoutes() {
         </>
       ) : (
         <Route
+          path="*"
           element={
             <Shell>
               <ErrorBoundary>
