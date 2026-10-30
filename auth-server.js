@@ -82,21 +82,25 @@ export async function initializeDatabase() {
     `)
     console.log(`[auth-db] Database initialized for dashboard "${DASHBOARD}"`)
 
-    // Seed this dashboard's admin account
-    const adminEmail = 'buddhadeb@rolplay.ca'
-    const adminPassword = 'Rolplay@2026Admin'
-    const existingAdmin = await client.query(
-      'SELECT id FROM users WHERE email = $1 AND dashboard = $2',
-      [adminEmail.toLowerCase(), DASHBOARD]
-    )
-    if (existingAdmin.rows.length === 0) {
-      const hash = await hashPassword(adminPassword)
-      await client.query(
-        `INSERT INTO users (email, dashboard, password_hash, full_name, role, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
-        [adminEmail.toLowerCase(), DASHBOARD, hash, 'Rolplay Admin', 'admin']
+    // Seed admin accounts — never overwrite an existing row
+    const seedAccounts = [
+      { email: 'buddhadeb@rolplay.ca', password: 'Rolplay@2026Admin', name: 'Rolplay Admin' },
+      { email: 'adminsanfer@rolplay.ca', password: process.env.SANFER_ADMIN_PASSWORD || 'Rolplay@2026Admin', name: 'Admin Sanfer' },
+    ]
+    for (const acct of seedAccounts) {
+      const existing = await client.query(
+        'SELECT id FROM users WHERE email = $1 AND dashboard = $2',
+        [acct.email.toLowerCase(), DASHBOARD]
       )
-      console.log(`[auth-db] Admin account created for "${DASHBOARD}"`)
+      if (existing.rows.length === 0) {
+        const hash = await hashPassword(acct.password)
+        await client.query(
+          `INSERT INTO users (email, dashboard, password_hash, full_name, role, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
+          [acct.email.toLowerCase(), DASHBOARD, hash, acct.name, 'admin']
+        )
+        console.log(`[auth-db] Seeded account "${acct.email}" for "${DASHBOARD}"`)
+      }
     }
   } finally {
     client.release()
