@@ -82,24 +82,33 @@ export async function initializeDatabase() {
     `)
     console.log(`[auth-db] Database initialized for dashboard "${DASHBOARD}"`)
 
-    // Seed admin accounts — never overwrite an existing row
+    // Seed admin accounts. If SANFER_ADMIN_PASSWORD is set, always sync that
+    // account's password on boot so an env-var change takes effect immediately
+    // without touching the database manually.
+    const sanferAdminPassword = process.env.SANFER_ADMIN_PASSWORD || 'Rolplay@2026Admin'
     const seedAccounts = [
-      { email: 'buddhadeb@rolplay.ca', password: 'Rolplay@2026Admin', name: 'Rolplay Admin' },
-      { email: 'adminsanfer@rolplay.ca', password: process.env.SANFER_ADMIN_PASSWORD || 'Rolplay@2026Admin', name: 'Admin Sanfer' },
+      { email: 'buddhadeb@rolplay.ca', password: 'Rolplay@2026Admin', name: 'Rolplay Admin', forceUpdate: false },
+      { email: 'adminsanfer@rolplay.ca', password: sanferAdminPassword, name: 'Admin Sanfer', forceUpdate: true },
     ]
     for (const acct of seedAccounts) {
       const existing = await client.query(
         'SELECT id FROM users WHERE email = $1 AND dashboard = $2',
         [acct.email.toLowerCase(), DASHBOARD]
       )
+      const hash = await hashPassword(acct.password)
       if (existing.rows.length === 0) {
-        const hash = await hashPassword(acct.password)
         await client.query(
           `INSERT INTO users (email, dashboard, password_hash, full_name, role, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, NOW(), NOW())`,
           [acct.email.toLowerCase(), DASHBOARD, hash, acct.name, 'admin']
         )
         console.log(`[auth-db] Seeded account "${acct.email}" for "${DASHBOARD}"`)
+      } else if (acct.forceUpdate) {
+        await client.query(
+          `UPDATE users SET password_hash = $1, updated_at = NOW() WHERE email = $2 AND dashboard = $3`,
+          [hash, acct.email.toLowerCase(), DASHBOARD]
+        )
+        console.log(`[auth-db] Synced password for "${acct.email}" in "${DASHBOARD}"`)
       }
     }
   } finally {
