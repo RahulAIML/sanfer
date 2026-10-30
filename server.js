@@ -21,7 +21,7 @@ const DIST = join(__dirname, 'dist')
 const PORT = parseInt(process.env.PORT ?? '4174')
 const CACHE_TTL = 5 * 60 * 1000
 const DASHBOARD_NAME = process.env.DASHBOARD_NAME ?? 'Sanfer'
-const SQL_TOKEN = process.env.SQL_TOKEN || ''
+const SQL_TOKEN = process.env.SQL_TOKEN || 'ROLPLAY-TEAM2026'
 
 const app = express()
 const apiCache = new Map()
@@ -84,7 +84,7 @@ app.use((req, res, next) => {
   next()
 })
 
-// ─── Auth endpoints ───────────────────────────────────────────────────────
+// ─── Auth endpoints ──────────────────────────────────────────────────
 app.post('/api/auth/login', rateLimitAuth, loginHandler)
 app.post('/api/auth/signup', rateLimitAuth, signupHandler)
 app.post('/api/auth/logout', logoutHandler)
@@ -158,7 +158,7 @@ app.use((req, res, next) => {
   requireAuth(req, res, () => proxyRequest(req, res, route))
 })
 
-// ─── Static file serving ──────────────────────────────────────────────────
+// ─── Static file serving ───────────────────────────────────────────────────
 app.get('*', async (req, res) => {
   let filePath = join(DIST, req.path)
   const ext = extname(filePath)
